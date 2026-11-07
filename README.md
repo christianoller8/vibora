@@ -1,15 +1,45 @@
 # Víbora
 
 Plataforma para reservar pistas de pádel en clubes y montar partidos abiertos en los que otros jugadores se apuntan.
-Backend Spring Boot (REST + JWT, PostgreSQL) y frontend Angular.
+Backend Spring Boot (REST + JWT + WebSocket STOMP, PostgreSQL) y frontend Angular con Angular Material.
+
+## Qué incluye
+
+- **Reservas:** clubes, pistas, tarifas por franja, agenda por día, reservas sin solapamientos (garantizado por una
+  restricción de PostgreSQL) y cancelación con plazo.
+- **Partidos abiertos y pagos compartidos:** hasta 4 jugadores por reserva, reparto de la cuota en céntimos, deudas,
+  pago simulado y saldos.
+- **Notificaciones en tiempo real** por WebSocket (STOMP) con el mismo JWT.
+- **Incidencias:** reporte con fotos, estados, historial, asignación al personal de mantenimiento y bloqueo de pistas
+  sin tocar las reservas ya hechas.
+- **Gestión del club:** personal por email, bloqueos y reservas del día con cancelación del administrador.
+- **Solo API, todavía sin pantalla:** facturas (numeración correlativa, IVA, rectificativas, PDF; documentos
+  simulados sin validez fiscal), datos fiscales del club y métricas del panel (ingresos, ocupación, franjas, cancelaciones).
+
+## Requisitos
+
+JDK 25, Node 24 (el mismo que usa el flujo de CI; `node --test` con comodines necesita Node 22 o superior) y Docker
+Desktop (la base de datos y los tests del backend usan contenedores).
 
 ## Arranque en local
 
 ```bash
-docker compose up -d db                      # PostgreSQL (puerto 5433)
+docker compose up -d db                      # PostgreSQL (puerto 5433, solo accesible desde tu máquina)
 cd vibora-backend && ./mvnw spring-boot:run  # API en http://localhost:8081
 cd vibora-frontend && npm start              # app en http://localhost:4200
 ```
+
+## Tests
+
+```bash
+cd vibora-backend && ./mvnw test                          # necesita Docker (Testcontainers); unos 8 minutos
+cd vibora-frontend && npx ng test --watch=false           # Vitest
+cd vibora-frontend && npm run test:csp                    # comprueba la política CSP generada
+node --test "scripts/lib/*.test.mjs"                      # helper de fechas del script de datos
+```
+
+Si Maven falla con un error de certificados (PKIX) detrás de un antivirus, exporta
+`MAVEN_OPTS="-Djavax.net.ssl.trustStoreType=Windows-ROOT"` antes de lanzarlo (Windows).
 
 ## Stack completo con Docker
 
@@ -35,6 +65,11 @@ service "comprobar-VIBORA_JWT_SECRET" didn't complete successfully: exit 1
 El motivo exacto sale con `docker compose --profile app logs comprobar-VIBORA_JWT_SECRET`. El backend ni se crea (no
 hay bucle de reinicios), y `docker compose up -d db` no se ve afectado: no necesita `.env`. Si arrancas el backend
 saltándote la comprobación (`--no-deps`), su `ENTRYPOINT` también se niega a arrancar sin secreto.
+
+Si levantaste la app con `docker compose --profile app up -d --build --no-deps backend frontend` y luego paras el
+backend, arráncalo de nuevo con `docker start vibora-backend-1` (o repitiendo `up -d --no-deps backend`):
+`docker compose start backend` falla con `missing dependency comprobar-VIBORA_JWT_SECRET` porque el servicio de
+comprobación nunca llegó a crearse.
 
 ```bash
 docker compose --profile app stop backend frontend   # para solo la app; la base de datos sigue en marcha
@@ -64,9 +99,11 @@ cuerpos de al menos 6 MB en `/api` (`client_max_body_size 6m;`; por defecto ngin
 El script de datos de ejemplo también sirve contra este stack (entra por nginx, que es `localhost`):
 `node scripts/seed-dev.mjs --base-url http://localhost:8088`.
 
-## Integración continua
+## Integración continua (definida, todavía sin ejecutar)
 
-`.github/workflows/ci.yml` se ejecuta en cada push y pull request a `main`:
+`.github/workflows/ci.yml` está pensado para ejecutarse en cada push y pull request a `main`, pero **aún no se ha
+ejecutado nunca en GitHub**: la cuenta tiene un bloqueo de facturación que impide arrancar los jobs. Los comandos que
+usa se han comprobado en local (véase «Tests»); el flujo de Actions en sí no está probado. Estaría formado por:
 
 - **backend**: `./mvnw verify` con Java 25 (los tests usan Testcontainers).
 - **frontend**: `ng test` y `ng build --configuration production` con Node 24.
