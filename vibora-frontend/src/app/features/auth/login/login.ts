@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, ElementRef, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -6,6 +6,7 @@ import { MatInputModule } from '@angular/material/input';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/auth/auth.service';
 import { mensajeDeError } from '../../../core/http/error.util';
+import { enfocarPrimerInvalido } from '../../../shared/forms/enfocar-invalido';
 import { destinoSeguro } from '../redirect.util';
 
 @Component({
@@ -18,6 +19,7 @@ export class Login {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  private readonly anfitrion = inject<ElementRef<HTMLElement>>(ElementRef);
 
   protected readonly form = inject(FormBuilder).nonNullable.group({
     email: ['', [Validators.required, Validators.email]],
@@ -27,8 +29,12 @@ export class Login {
   protected readonly error = signal<string | null>(null);
 
   protected enviar(): void {
-    if (this.form.invalid || this.enviando()) {
-      this.form.markAllAsTouched();
+    if (this.enviando()) {
+      return;
+    }
+    if (this.form.invalid) {
+      this.form.markAllAsTouched(); // saca a la vista todos los mensajes de validación
+      enfocarPrimerInvalido(this.anfitrion.nativeElement);
       return;
     }
     this.enviando.set(true);

@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { Subject, of, throwError } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { USUARIO_JUGADOR, crearAuthFalso } from '../../../testing/test-utils';
 import { Registro } from './registro';
@@ -50,8 +50,64 @@ describe('Registro', () => {
     await fixture.whenStable();
   }
 
-  it('empieza con el botón deshabilitado', () => {
-    expect(boton().disabled).toBe(true);
+  const formValido = (): boolean =>
+    (fixture.componentInstance as unknown as { form: { valid: boolean } }).form.valid;
+
+  it('el botón está habilitado desde el principio (solo se bloquea mientras se envía)', () => {
+    expect(boton().disabled).toBe(false);
+  });
+
+  describe('enviar con el formulario inválido', () => {
+    async function pulsar(): Promise<void> {
+      boton().click();
+      fixture.detectChanges();
+      await fixture.whenStable();
+    }
+
+    it('muestra todos los errores, enfoca el primer campo inválido y no hace ninguna petición', async () => {
+      await pulsar();
+
+      expect(el().textContent).toContain('Los apellidos son obligatorios');
+      expect(el().textContent).toContain('El correo electrónico es obligatorio');
+      expect(el().textContent).toContain('La contraseña es obligatoria');
+      expect(document.activeElement).toBe(el().querySelector('input[name="apellidos"]')); // el nombre es opcional
+      expect(auth.registro).not.toHaveBeenCalled();
+      expect(auth.login).not.toHaveBeenCalled();
+    });
+
+    it('enfoca el primer campo inválido en el orden en que se ven', async () => {
+      await escribir('apellidos', 'García López');
+      await pulsar();
+      expect(document.activeElement).toBe(el().querySelector('input[name="email"]'));
+
+      await escribir('email', 'ana@vibora.es');
+      await pulsar();
+      expect(document.activeElement).toBe(el().querySelector('input[name="password"]'));
+      expect(auth.registro).not.toHaveBeenCalled();
+    });
+
+    it('con una contraseña demasiado corta la marca y la enfoca', async () => {
+      await rellenarValido();
+      await escribir('password', 'corta');
+
+      await pulsar();
+
+      expect(el().textContent).toContain('La contraseña debe tener al menos 8 caracteres');
+      expect(document.activeElement).toBe(el().querySelector('input[name="password"]'));
+      expect(auth.registro).not.toHaveBeenCalled();
+    });
+
+    it('con el formulario válido sí envía y mientras tanto el botón queda deshabilitado', async () => {
+      const respuesta = new Subject<typeof USUARIO_JUGADOR>();
+      auth.registro.mockReturnValue(respuesta);
+      await rellenarValido();
+
+      await pulsar();
+
+      expect(auth.registro).toHaveBeenCalledTimes(1);
+      expect(boton().disabled).toBe(true);
+      expect(boton().textContent).toContain('Creando cuenta');
+    });
   });
 
   it('exige una contraseña de al menos 8 caracteres', async () => {
@@ -65,27 +121,27 @@ describe('Registro', () => {
 
     expect(el().textContent).toContain('La contraseña no puede superar los 72 bytes');
     expect(el().textContent).not.toContain('al menos 8 caracteres');
-    expect(boton().disabled).toBe(true);
+    expect(formValido()).toBe(false);
   });
 
   it('acepta una contraseña de exactamente 72 bytes (36 "ñ" o 72 ASCII)', async () => {
     await rellenarValido();
 
     await escribir('password', 'ñ'.repeat(36), true);
-    expect(boton().disabled).toBe(false);
+    expect(formValido()).toBe(true);
 
     await escribir('password', 'a'.repeat(72), true);
-    expect(boton().disabled).toBe(false);
+    expect(formValido()).toBe(true);
 
     await escribir('password', 'a'.repeat(73), true);
-    expect(boton().disabled).toBe(true);
+    expect(formValido()).toBe(false);
   });
 
   it('mide los bytes de la forma normalizada NFC, como hace el backend', async () => {
     await rellenarValido();
     await escribir('password', 'ñ'.repeat(36).normalize('NFD'), true); // 108 bytes en NFD, 72 en NFC
 
-    expect(boton().disabled).toBe(false);
+    expect(formValido()).toBe(true);
   });
 
   it('exige los apellidos', async () => {
@@ -95,7 +151,7 @@ describe('Registro', () => {
 
   it('el nombre es opcional', async () => {
     await rellenarValido();
-    expect(boton().disabled).toBe(false);
+    expect(formValido()).toBe(true);
   });
 
   it('registra, inicia sesión con las mismas credenciales y va a /agenda', async () => {

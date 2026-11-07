@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, ElementRef, inject, signal } from '@angular/core';
 import {
   AbstractControl,
   FormBuilder,
@@ -14,6 +14,7 @@ import { Router, RouterLink } from '@angular/router';
 import { switchMap, tap } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { mensajeDeError } from '../../../core/http/error.util';
+import { enfocarPrimerInvalido } from '../../../shared/forms/enfocar-invalido';
 import { DESTINO_POR_DEFECTO } from '../redirect.util';
 
 /** BCrypt (backend) admite 72 BYTES, no caracteres. */
@@ -40,6 +41,7 @@ function maxBytesUtf8(max: number): ValidatorFn {
 export class Registro {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly anfitrion = inject<ElementRef<HTMLElement>>(ElementRef);
 
   // Las reglas replican las del backend (RegistroRequest)
   protected readonly form = inject(FormBuilder).nonNullable.group({
@@ -55,8 +57,12 @@ export class Registro {
   protected readonly error = signal<string | null>(null);
 
   protected enviar(): void {
-    if (this.form.invalid || this.enviando()) {
-      this.form.markAllAsTouched();
+    if (this.enviando()) {
+      return;
+    }
+    if (this.form.invalid) {
+      this.form.markAllAsTouched(); // saca a la vista todos los mensajes de validación
+      enfocarPrimerInvalido(this.anfitrion.nativeElement);
       return;
     }
     this.enviando.set(true);

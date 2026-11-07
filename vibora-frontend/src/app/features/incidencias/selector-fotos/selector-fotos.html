@@ -27,7 +27,7 @@
 
   @if (errores().length > 0) {
     <ul class="errores" role="alert">
-      @for (error of errores(); track error) {
+      @for (error of errores(); track $index) {
         <li>{{ error }}</li>
       }
     </ul>

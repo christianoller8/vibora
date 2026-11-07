@@ -53,7 +53,7 @@
     <p class="error" role="alert">{{ mensaje }}</p>
   }
 
-  <button mat-flat-button type="submit" [disabled]="form.invalid || enviando()">
+  <button mat-flat-button type="submit" [disabled]="enviando()">
     {{ enviando() ? 'Creando cuenta…' : 'Crear cuenta' }}
   </button>
 </form>

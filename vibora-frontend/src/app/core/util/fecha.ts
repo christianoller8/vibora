@@ -77,16 +77,6 @@ export function formatearPrecio(precio: number | null): string {
 }
 
 /**
- * YYYY-MM-DD con las partes LOCALES de la fecha. No usar toISOString(): convierte a UTC y, en zonas por
- * delante de UTC, la medianoche local cae en el día anterior.
- */
-export function fechaAString(fecha: Date): string {
-  const mes = String(fecha.getMonth() + 1).padStart(2, '0');
-  const dia = String(fecha.getDate()).padStart(2, '0');
-  return `${fecha.getFullYear()}-${mes}-${dia}`;
-}
-
-/**
  * Hora de reloj de Madrid ("2026-07-15T18:00", el valor de un `<input type="datetime-local">`) → instante ISO-8601
  * UTC. Devuelve null si el texto no es una fecha real o si esa hora no existe en Madrid (el salto de marzo).
  * No depende de la zona del navegador.

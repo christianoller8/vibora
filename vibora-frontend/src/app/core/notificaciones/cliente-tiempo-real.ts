@@ -44,7 +44,7 @@ export const fabricaStomp: FabricaClienteTiempoReal = async (opciones) => {
     reconnectDelay: 1000,
     reconnectTimeMode: ReconnectionTimeMode.EXPONENTIAL,
     maxReconnectDelay: 30_000,
-    // el broker simple del backend no manda latidos; si algún día los manda, se negocian
+    // el backend manda un latido cada 10 s; se negocia el mismo intervalo en ambos sentidos
     heartbeatIncoming: 10_000,
     heartbeatOutgoing: 10_000,
     onConnect: () => {

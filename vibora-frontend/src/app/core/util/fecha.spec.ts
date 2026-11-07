@@ -1,5 +1,4 @@
 import {
-  fechaAString,
   formatearFecha,
   formatearFechaHora,
   formatearFechaLarga,
@@ -70,22 +69,6 @@ describe('fecha (zona Europe/Madrid)', () => {
 
     it('devuelve un guion cuando no hay precio', () => {
       expect(formatearPrecio(null)).toBe('—');
-    });
-  });
-
-  describe('fechaAString', () => {
-    it('usa las partes locales de la fecha (no toISOString)', () => {
-      // 00:30 locales del 15 de marzo: en zonas por delante de UTC, toISOString() daría el 14
-      const medianocheLocal = new Date(2026, 2, 15, 0, 30);
-      expect(fechaAString(medianocheLocal)).toBe('2026-03-15');
-    });
-
-    it('rellena mes y día con ceros', () => {
-      expect(fechaAString(new Date(2026, 0, 5, 12, 0))).toBe('2026-01-05');
-    });
-
-    it('conserva el último día del año a última hora', () => {
-      expect(fechaAString(new Date(2026, 11, 31, 23, 59))).toBe('2026-12-31');
     });
   });
 

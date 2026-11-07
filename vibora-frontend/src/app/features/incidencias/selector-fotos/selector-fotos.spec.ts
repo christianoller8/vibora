@@ -83,6 +83,22 @@ describe('SelectorFotos', () => {
     expect(el().querySelector('.errores')?.getAttribute('role')).toBe('alert');
   });
 
+  it('mensajes de error idénticos (mismo nombre rechazado dos veces) se pintan todos, sin NG0955', async () => {
+    await crear();
+    const aviso = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const fallo = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    await elegir(crearImagen('uno.gif', 'image/gif')); // lista anterior distinta: obliga a reconciliar por clave
+    await elegir(crearImagen('dos.gif', 'image/gif'), crearImagen('dos.gif', 'image/gif'));
+
+    expect(errores()).toHaveLength(2);
+    expect(errores()[0]).toBe(errores()[1]);
+    const avisos = [...aviso.mock.calls, ...fallo.mock.calls].map((llamada) => String(llamada[0]));
+    expect(avisos.filter((texto) => texto.includes('NG0955'))).toEqual([]);
+    aviso.mockRestore();
+    fallo.mockRestore();
+  });
+
   it('un archivo de más de 5 MB se rechaza', async () => {
     await crear();
 

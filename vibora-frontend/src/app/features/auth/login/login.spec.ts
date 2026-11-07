@@ -50,9 +50,50 @@ describe('Login', () => {
 
   afterEach(() => vi.restoreAllMocks());
 
-  it('tiene el botón de entrar deshabilitado mientras el formulario es inválido', async () => {
+  it('el botón de entrar está siempre habilitado (aunque el formulario sea inválido) si no hay envío en curso', async () => {
     await crear();
-    expect(boton().disabled).toBe(true);
+    expect(boton().disabled).toBe(false);
+  });
+
+  describe('enviar con el formulario inválido', () => {
+    it('muestra todos los errores, enfoca el primer campo inválido y no hace ninguna petición', async () => {
+      await crear();
+
+      boton().click();
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(el().textContent).toContain('El correo electrónico es obligatorio');
+      expect(el().textContent).toContain('La contraseña es obligatoria');
+      expect(document.activeElement).toBe(el().querySelector('input[name="email"]'));
+      expect(auth.login).not.toHaveBeenCalled();
+    });
+
+    it('con el correo válido y la contraseña vacía enfoca la contraseña', async () => {
+      await crear();
+      await rellenar('ana@vibora.es', '');
+
+      boton().click();
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(document.activeElement).toBe(el().querySelector('input[name="password"]'));
+      expect(el().textContent).toContain('La contraseña es obligatoria');
+      expect(auth.login).not.toHaveBeenCalled();
+    });
+
+    it('con un correo mal formado lo marca y lo enfoca', async () => {
+      await crear();
+      await rellenar('no-es-email', 'secreto123');
+
+      boton().click();
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(el().textContent).toContain('Introduce un correo electrónico válido');
+      expect(document.activeElement).toBe(el().querySelector('input[name="email"]'));
+      expect(auth.login).not.toHaveBeenCalled();
+    });
   });
 
   it('muestra un error de email inválido tras tocar el campo', async () => {
