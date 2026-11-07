@@ -270,7 +270,16 @@ public class FacturaService {
 		if (nif != null && !nif.isBlank() && !ValidadorNif.esValido(nif)) {
 			throw new IllegalArgumentException("El NIF/CIF no es válido");
 		}
-		return new Receptor(nombre != null ? nombre : abreviar(limpiar(organizador.nombreCompleto()), MAX_NOMBRE),
+		if (nombre == null) {
+			// Sin nombre en el cuerpo: el del organizador. Si, limpio de caracteres de control, queda vacio, no hay nombre
+			// usable: 400 (el cliente puede mandar uno en el cuerpo) en vez de un NPE.
+			String delOrganizador = limpiar(organizador.nombreCompleto());
+			if (delOrganizador == null) {
+				throw new IllegalArgumentException("El nombre del receptor no es válido");
+			}
+			nombre = abreviar(delOrganizador, MAX_NOMBRE);
+		}
+		return new Receptor(nombre,
 				nif == null || nif.isBlank() ? null : ValidadorNif.normalizar(nif),
 				direccion == null ? null : abreviar(direccion, MAX_DIRECCION));
 	}
