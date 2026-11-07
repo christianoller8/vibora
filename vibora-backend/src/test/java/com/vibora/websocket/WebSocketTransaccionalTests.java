@@ -8,12 +8,14 @@ import org.springframework.messaging.MessagingException;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 
@@ -40,8 +42,15 @@ class WebSocketTransaccionalTests extends WebSocketTestBase {
 		long notificacionesAntes = notificaciones.count();
 
 		// la ultima lectura de apuntarse() (ya con las notificaciones creadas y el evento publicado) falla -> rollback
-		doThrow(new IllegalStateException("fallo forzado")).when(participantesEspia).findByReservaIdOrderByPuesto(anyLong());
-		assertThatThrownBy(() -> apuntarse(beto, id)).hasRootCauseMessage("fallo forzado");
+		AtomicInteger fallosInyectados = new AtomicInteger();
+		doAnswer(invocacion -> {
+			fallosInyectados.incrementAndGet();
+			throw new IllegalStateException("fallo forzado");
+		}).when(participantesEspia).findByReservaIdOrderByPuesto(anyLong());
+		// antes la excepcion sin tratar atravesaba MockMvc; ahora el GlobalExceptionHandler la convierte en un 500 generico
+		assertThat(apuntarse(beto, id)).isEqualTo(500);
+		// prueba de que el 500 es el fallo inyectado (la lectura final del servicio) y no cualquier otro error
+		assertThat(fallosInyectados.get()).as("el fallo forzado llego a dispararse").isPositive();
 
 		assertThat(notificaciones.count()).as("nada quedo guardado").isEqualTo(notificacionesAntes);
 		assertThat(participantes.count()).as("beto no quedo apuntado").isEqualTo(2);

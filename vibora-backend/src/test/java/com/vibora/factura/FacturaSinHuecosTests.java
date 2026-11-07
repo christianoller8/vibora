@@ -7,9 +7,9 @@ import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MvcResult;
 
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Una transaccion que falla DESPUES de haber tomado un numero lo devuelve: el contador se deshace junto con ella, asi
@@ -20,15 +20,30 @@ class FacturaSinHuecosTests extends FacturaSinTransaccionBase {
 
 	@MockitoSpyBean NumeracionFacturas numeracion;
 
+	/** Veces que se ha llegado de verdad al punto de fallo inyectado (prueba de que el 500 viene de aqui y no de otra parte). */
+	private final AtomicInteger fallosInyectados = new AtomicInteger();
+
 	private void fallarTrasTomarNumero() {
+		fallosInyectados.set(0);
 		Mockito.doAnswer(invocacion -> {
 			invocacion.callRealMethod(); // el contador de la BD ya esta incrementado y bloqueado...
+			fallosInyectados.incrementAndGet();
 			throw new IllegalStateException("fallo forzado tras tomar el numero");
 		}).when(numeracion).siguiente(Mockito.anyLong(), Mockito.anyInt());
 	}
 
 	private void restaurar() {
 		Mockito.reset(numeracion);
+	}
+
+	/**
+	 * Antes la excepcion sin tratar atravesaba MockMvc; ahora el GlobalExceptionHandler la convierte en un 500 generico.
+	 * La transaccion del servicio ya se ha deshecho en ambos casos: lo que se comprueba despues no cambia.
+	 */
+	private void exigirErrorInterno(MvcResult resultado) throws Exception {
+		assertThat(fallosInyectados.get()).as("el fallo forzado tras tomar el numero llego a dispararse").isPositive();
+		assertThat(resultado.getResponse().getStatus()).isEqualTo(500);
+		assertThat(resultado.getResponse().getContentAsString()).isEqualTo("{\"error\":\"Error interno\"}");
 	}
 
 	@Test
@@ -40,8 +55,7 @@ class FacturaSinHuecosTests extends FacturaSinTransaccionBase {
 		assertThat(facturar(ana, r1).getResponse().getStatus()).isEqualTo(201); // F-0001
 
 		fallarTrasTomarNumero();
-		assertThatThrownBy(() -> facturar(ana, r2)).hasRootCauseInstanceOf(IllegalStateException.class)
-				.hasMessageContaining("fallo forzado");
+		exigirErrorInterno(facturar(ana, r2));
 		restaurar();
 
 		assertThat(contador(anioActual())).as("el contador se deshizo con la transaccion").isEqualTo(1);
@@ -64,7 +78,7 @@ class FacturaSinHuecosTests extends FacturaSinTransaccionBase {
 		assertThat(facturar(ana, reserva).getResponse().getStatus()).isEqualTo(201); // F-0001
 
 		fallarTrasTomarNumero();
-		assertThatThrownBy(() -> cancelar(ana, reserva)).hasRootCauseInstanceOf(IllegalStateException.class);
+		exigirErrorInterno(cancelar(ana, reserva));
 		restaurar();
 
 		// todo se deshizo: la reserva sigue confirmada, no hay rectificativa ni aviso, el contador no se movio
@@ -88,7 +102,7 @@ class FacturaSinHuecosTests extends FacturaSinTransaccionBase {
 		for (int i = 0; i < reservas.size(); i++) {
 			long reserva = reservas.get(i);
 			fallarTrasTomarNumero();
-			assertThatThrownBy(() -> facturar(ana, reserva)).hasRootCauseInstanceOf(IllegalStateException.class);
+			exigirErrorInterno(facturar(ana, reserva));
 			restaurar();
 			assertThat(facturar(ana, reserva).getResponse().getStatus()).isEqualTo(201);
 		}
