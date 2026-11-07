@@ -3,6 +3,7 @@ package com.vibora.club;
 import com.vibora.auth.AutorizacionClub;
 import com.vibora.common.exception.ConflictoException;
 import com.vibora.common.exception.RecursoNoEncontradoException;
+import com.vibora.usuario.BloqueoUsuario;
 import com.vibora.usuario.Rol;
 import com.vibora.usuario.Usuario;
 import com.vibora.usuario.UsuarioRepository;
@@ -19,6 +20,7 @@ public class ClubService {
 	private final ClubRepository clubs;
 	private final UsuarioRepository usuarios;
 	private final AutorizacionClub autorizacion;
+	private final BloqueoUsuario bloqueo;
 
 	@Transactional(readOnly = true)
 	public List<ClubResponse> listar() {
@@ -37,7 +39,9 @@ public class ClubService {
 	 */
 	@Transactional
 	public ClubResponse crear(ClubRequest peticion) {
-		Usuario usuario = autorizacion.usuarioActual();
+		// Se bloquea la fila del usuario y se RELEE antes de decidir: dos altas simultaneas del mismo jugador se
+		// serializan y la segunda ve ya el club y el rol que dejo la primera (409), en vez de crear un segundo club.
+		Usuario usuario = bloqueo.bloquear(autorizacion.usuarioActual());
 		if (usuario.getRol() != Rol.JUGADOR || usuario.getClub() != null) {
 			throw new ConflictoException("Ya perteneces a un club");
 		}
