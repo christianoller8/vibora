@@ -1,5 +1,6 @@
 package com.vibora.tarifa;
 
+import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotNull;
@@ -16,6 +17,7 @@ public record TarifaRequest(
 		@NotNull DayOfWeek diaSemana,
 		@NotNull LocalTime horaInicio,
 		@NotNull LocalTime horaFin,
-		@NotNull @DecimalMin("0.00") @Digits(integer = 6, fraction = 2) BigDecimal precioHora,
+		// Tope 9999.99 EUR/h: cualquier casilla de un dia (maximo 24 h = 239.999,76) cabe en reserva.precio_total numeric(8,2)
+		@NotNull @DecimalMin("0.00") @DecimalMax("9999.99") @Digits(integer = 4, fraction = 2) BigDecimal precioHora,
 		@NotNull TipoTarifa tipo) {
 }

@@ -47,6 +47,35 @@ class CalculadoraPrecioTests {
 	}
 
 	@Test
+	void totalQueNoCabeEnLaColumna_lanzaIllegalArgument() {
+		// numeric(8,2) admite como mucho 999999.99: 999999.99 EUR/h durante 90 minutos serian 1.499.999,99
+		var tarifas = List.of(franja(DayOfWeek.MONDAY, 8, 23, "999999.99"));
+
+		assertThatThrownBy(() -> calculadora.calcular(tarifas, local(LUNES, 11, 0), local(LUNES, 12, 30), MADRID))
+				.isInstanceOf(IllegalArgumentException.class)
+				.hasMessage("El precio calculado supera el máximo admitido");
+	}
+
+	@Test
+	void totalExactamenteEnElMaximoDeLaColumna_seAcepta() {
+		var tarifas = List.of(franja(DayOfWeek.MONDAY, 8, 23, "999999.99"));
+
+		BigDecimal precio = calculadora.calcular(tarifas, local(LUNES, 11, 0), local(LUNES, 12, 0), MADRID);
+
+		assertThat(precio).isEqualByComparingTo("999999.99");
+	}
+
+	@Test
+	void tarifaMaximaDeLaApi_enLaCasillaMasLargaDelDia_cabeEnLaColumna() {
+		// 9999.99 EUR/h durante 24 h (el tramo mas largo posible: no puede cruzar la medianoche) = 239.999,76
+		var tarifas = List.of(franja(DayOfWeek.MONDAY, 0, 23, "9999.99"));
+
+		BigDecimal precio = calculadora.calcular(tarifas, local(LUNES, 0, 0), local(LUNES, 22, 59), MADRID);
+
+		assertThat(precio).isLessThanOrEqualTo(new BigDecimal("999999.99"));
+	}
+
+	@Test
 	void tramoQueCruzaDosFranjas_seProrrateaCadaParte() {
 		var tarifas = List.of(
 				franja(DayOfWeek.MONDAY, 8, 18, "12.00"),

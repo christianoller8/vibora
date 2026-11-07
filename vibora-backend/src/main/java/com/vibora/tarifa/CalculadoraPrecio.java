@@ -20,6 +20,9 @@ import java.util.List;
 public class CalculadoraPrecio {
 
 	static final String SIN_TARIFA = "No hay tarifa definida para esa franja horaria";
+	static final String PRECIO_EXCESIVO = "El precio calculado supera el máximo admitido";
+	/** Lo que cabe en reserva.precio_total numeric(8,2). */
+	static final BigDecimal MAXIMO = new BigDecimal("999999.99");
 
 	public BigDecimal calcular(List<TarifaFranja> tarifas, Instant inicio, Instant fin, ZoneId zona) {
 		LocalDateTime desde = inicio.atZone(zona).toLocalDateTime();
@@ -51,7 +54,11 @@ public class CalculadoraPrecio {
 		if (minutosCubiertos != minutosTramo) {
 			throw new IllegalArgumentException(SIN_TARIFA);
 		}
-		return acumulado.divide(BigDecimal.valueOf(60), 2, RoundingMode.HALF_UP);
+		BigDecimal total = acumulado.divide(BigDecimal.valueOf(60), 2, RoundingMode.HALF_UP);
+		if (total.compareTo(MAXIMO) > 0) { // tarifas heredadas fuera del tope de la API: 400 en vez de desbordar la columna
+			throw new IllegalArgumentException(PRECIO_EXCESIVO);
+		}
+		return total;
 	}
 
 	private static LocalTime max(LocalTime a, LocalTime b) {
