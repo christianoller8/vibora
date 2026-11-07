@@ -2,6 +2,7 @@ package com.vibora.bloqueo;
 
 import com.vibora.auth.AutorizacionClub;
 import com.vibora.club.ClubRepository;
+import com.vibora.common.LimitesFecha;
 import com.vibora.common.exception.ConflictoException;
 import com.vibora.common.exception.RecursoNoEncontradoException;
 import com.vibora.incidencia.HistorialIncidencia;
@@ -93,6 +94,8 @@ public class BloqueoService {
 	@Transactional
 	public BloqueoCreadoResponse crearBloqueo(Usuario administrador, Long pistaId, Incidencia incidencia, String motivo,
 			Instant desdePedido, Instant hastaPedido) {
+		LimitesFecha.validarInstante(desdePedido); // antes de usar los instantes en calculos o consultas
+		LimitesFecha.validarInstante(hastaPedido);
 		Instant ahora = ahora();
 		Instant desde = desdePedido == null ? ahora : desdePedido.truncatedTo(ChronoUnit.MICROS);
 		Instant hasta = hastaPedido == null ? null : hastaPedido.truncatedTo(ChronoUnit.MICROS);

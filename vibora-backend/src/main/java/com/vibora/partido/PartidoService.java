@@ -5,6 +5,7 @@ import com.vibora.cargo.CalculadoraCuotas;
 import com.vibora.cargo.Cargo;
 import com.vibora.cargo.CargoRepository;
 import com.vibora.cargo.EstadoCargo;
+import com.vibora.common.LimitesFecha;
 import com.vibora.common.exception.ConflictoException;
 import com.vibora.common.exception.RecursoNoEncontradoException;
 import com.vibora.notificacion.NotificacionService;
@@ -12,6 +13,7 @@ import com.vibora.notificacion.TextosAviso;
 import com.vibora.notificacion.TipoNotificacion;
 import com.vibora.reserva.EstadoReserva;
 import com.vibora.reserva.Reserva;
+import com.vibora.reserva.ReservaProperties;
 import com.vibora.reserva.ReservaRepository;
 import com.vibora.reserva.ReservaResponse;
 import com.vibora.usuario.Usuario;
@@ -54,12 +56,14 @@ public class PartidoService {
 	private final AutorizacionClub autorizacion;
 	private final NotificacionService notificaciones;
 	private final TextosAviso textos;
+	private final ReservaProperties propiedades;
 	private final Clock reloj;
 	private final ZoneId zona;
 
 	@Transactional(readOnly = true)
 	public List<PartidoResponse> listar(Long clubId, LocalDate fecha) {
 		Usuario usuario = autorizacion.usuarioActual();
+		LimitesFecha.validar(fecha);
 		Instant ahora = reloj.instant();
 		Instant desde = fecha == null ? ahora : fecha.atStartOfDay(zona).toInstant();
 		Instant hasta = fecha == null ? SIN_LIMITE : fecha.plusDays(1).atStartOfDay(zona).toInstant();
@@ -76,7 +80,7 @@ public class PartidoService {
 		}
 		exigirConfirmadaYFutura(reserva, "No se puede abrir o cerrar una reserva cancelada");
 		reserva.setAbierta(abierta);
-		return ReservaResponse.de(reserva);
+		return ReservaResponse.de(reserva, propiedades.cancelacionMinimaHoras());
 	}
 
 	@Transactional

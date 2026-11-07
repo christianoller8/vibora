@@ -8,6 +8,7 @@ import com.vibora.cargo.CargoRepository;
 import com.vibora.cargo.EstadoCargo;
 import com.vibora.club.Club;
 import com.vibora.club.ClubRepository;
+import com.vibora.common.LimitesFecha;
 import com.vibora.common.exception.ConflictoException;
 import com.vibora.common.exception.RecursoNoEncontradoException;
 import com.vibora.factura.FacturaService;
@@ -77,6 +78,7 @@ public class ReservaService {
 		Pista pista = pistas.findByIdAndClubIdParaCompartir(pistaId, clubId)
 				.orElseThrow(() -> new RecursoNoEncontradoException("Pista no encontrada"));
 		Usuario usuario = autorizacion.usuarioActual();
+		LimitesFecha.validarInstante(peticion.inicio()); // antes de usar el instante en calculos o consultas
 		if (!pista.isActiva()) {
 			throw new ConflictoException("La pista no está activa");
 		}
@@ -116,7 +118,7 @@ public class ReservaService {
 			organizador.setUnidoEn(reloj.instant());
 			participantes.save(organizador);
 			guardada.getParticipantes().add(organizador);
-			return ReservaResponse.de(guardada);
+			return respuesta(guardada);
 		} catch (DataIntegrityViolationException ex) {
 			if (violaSolape(ex)) {
 				throw pistaOcupada();
@@ -133,6 +135,7 @@ public class ReservaService {
 	public List<CasillaAgenda> agenda(Long clubId, Long pistaId, LocalDate fecha) {
 		Club club = buscarClub(clubId);
 		Pista pista = buscarPista(clubId, pistaId);
+		LimitesFecha.validar(fecha);
 		Duration duracion = duracion();
 		List<Reserva> ocupadas = reservas.findByPistaIdAndEstadoAndInicioLessThanAndFinGreaterThan(pistaId,
 				EstadoReserva.CONFIRMADA, inicioDelDia(fecha.plusDays(1)), inicioDelDia(fecha));
@@ -155,7 +158,7 @@ public class ReservaService {
 	public List<ReservaResponse> mias() {
 		Usuario usuario = autorizacion.usuarioActual();
 		return reservas.findByUsuarioIdOrderByCreadoEnDescIdDesc(usuario.getId()).stream()
-				.map(ReservaResponse::de).toList();
+				.map(this::respuesta).toList();
 	}
 
 	@Transactional
@@ -170,7 +173,7 @@ public class ReservaService {
 			throw new AccessDeniedException("Acceso denegado");
 		}
 		if (reserva.getEstado() == EstadoReserva.CANCELADA) {
-			return ReservaResponse.de(reserva); // idempotente
+			return respuesta(reserva); // idempotente
 		}
 		Instant ahora = reloj.instant();
 		if (admin) {
@@ -183,7 +186,11 @@ public class ReservaService {
 		reserva.setEstado(EstadoReserva.CANCELADA);
 		liquidarCargosYAvisar(reserva, usuario, false);
 		facturaService.rectificarSiFacturada(reserva); // ultimo bloqueo de fila: el contador de facturas
-		return ReservaResponse.de(reservas.save(reserva));
+		return respuesta(reservas.save(reserva));
+	}
+
+	private ReservaResponse respuesta(Reserva reserva) {
+		return ReservaResponse.de(reserva, propiedades.cancelacionMinimaHoras());
 	}
 
 	/**
@@ -228,6 +235,7 @@ public class ReservaService {
 	public List<ReservaClubResponse> delClub(Long clubId, LocalDate fecha) {
 		buscarClub(clubId);
 		autorizacion.exigirAdminDe(clubId);
+		LimitesFecha.validar(fecha);
 		return reservas.findByPistaClubIdAndInicioGreaterThanEqualAndInicioLessThanOrderByInicioAscIdAsc(clubId,
 				inicioDelDia(fecha), inicioDelDia(fecha.plusDays(1))).stream().map(ReservaClubResponse::de).toList();
 	}
