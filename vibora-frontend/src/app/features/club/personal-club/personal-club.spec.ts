@@ -77,6 +77,18 @@ describe('PersonalClub', () => {
     cierraCon(undefined);
   });
 
+  it('un miembro sin nombre ni apellidos sale como "Sin nombre" (también en el aria-label), sin "null"', async () => {
+    personal.listar.mockReturnValue(of([{ ...SIN_NOMBRE, nombre: null, apellidos: null }]));
+
+    await crear();
+
+    expect(texto(filas()[0].querySelector('.nombre'))).toBe('Sin nombre');
+    expect(botonQuitar(filas()[0])!.getAttribute('aria-label')).toBe(
+      'Quitar a Sin nombre del personal',
+    );
+    expect(el().textContent).not.toContain('null');
+  });
+
   describe('listado', () => {
     it('pide el personal del club y muestra un spinner mientras tanto', async () => {
       personal.listar.mockReturnValue(NEVER);

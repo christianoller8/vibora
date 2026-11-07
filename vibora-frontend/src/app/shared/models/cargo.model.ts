@@ -2,7 +2,8 @@ export type EstadoCargo = 'PENDIENTE' | 'PAGADO' | 'ANULADO' | 'REEMBOLSADO';
 
 export interface UsuarioCargo {
   id: number;
-  nombre: string;
+  /** Opcional al registrarse: puede ser null. */
+  nombre: string | null;
   apellidos: string | null;
 }
 
@@ -23,7 +24,8 @@ export interface Cargo {
 
 export interface SaldoUsuario {
   usuarioId: number;
-  nombre: string;
+  /** Opcional al registrarse: puede ser null. */
+  nombre: string | null;
   apellidos: string | null;
   debo: number;
   meDeben: number;

@@ -54,7 +54,7 @@ export interface ReservaAfectada {
   id: number;
   inicio: string;
   fin: string;
-  organizador: { id: number; nombre: string; email: string };
+  organizador: { id: number; nombre: string | null; email: string };
   /** Jugadores apuntados (el organizador cuenta), de 4. */
   jugadores: PersonaIncidencia[];
 }

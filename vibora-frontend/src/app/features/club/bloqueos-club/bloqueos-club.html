@@ -99,7 +99,7 @@
             </mat-chip-set>
             @if (bloqueo.levantadoPor; as quien) {
               <span class="levantado"
-                >Por {{ quien.nombre }} el {{ formatearFechaHora(bloqueo.levantadoEn) }}</span
+                >Por {{ nombrePersona(quien) }} el {{ formatearFechaHora(bloqueo.levantadoEn) }}</span
               >
             }
           </td>
@@ -108,7 +108,7 @@
         <ng-container matColumnDef="creador">
           <th mat-header-cell *matHeaderCellDef>Creado por</th>
           <td mat-cell *matCellDef="let bloqueo" class="creador" data-label="Creado por">
-            <span>{{ bloqueo.creadoPor.nombre }}</span>
+            <span>{{ nombrePersona(bloqueo.creadoPor) }}</span>
             <span class="cuando">{{ formatearFechaHora(bloqueo.creadoEn) }}</span>
           </td>
         </ng-container>

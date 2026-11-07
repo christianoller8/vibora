@@ -49,6 +49,7 @@ import {
   TipoEventoIncidencia,
 } from '../../../shared/models/incidencia.model';
 import { TipoNotificacion } from '../../../shared/models/notificacion.model';
+import { nombrePersona } from '../../../shared/util/nombres';
 import { BloqueoService } from '../../club/bloqueo.service';
 import { AccionesBloqueo, BloqueoRef } from '../../club/bloqueos-club/acciones-bloqueo';
 import { mensajePistaBloqueada } from '../../club/bloqueos-club/afectadas-textos';
@@ -182,6 +183,7 @@ export class DetalleIncidencia {
   protected readonly etiquetaEstado = ETIQUETA_ESTADO_INCIDENCIA;
   protected readonly etiquetaPrioridad = ETIQUETA_PRIORIDAD;
   protected readonly etiquetaCategoria = ETIQUETA_CATEGORIA;
+  protected readonly nombrePersona = nombrePersona;
   protected readonly maxFotos = MAX_FOTOS_INCIDENCIA;
   protected readonly aceptarFotos = TIPOS_FOTO_PERMITIDOS.join(',');
   protected readonly exacta = formatearFechaHora;

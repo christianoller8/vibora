@@ -19,6 +19,7 @@ import {
   ConfirmDialogData,
 } from '../../../shared/components/confirm-dialog/confirm-dialog';
 import { ReservaAfectada } from '../../../shared/models/bloqueo.model';
+import { nombrePersona } from '../../../shared/util/nombres';
 import { BloqueoService } from '../bloqueo.service';
 import { datosConfirmacionCancelar, mensajeCancelacion } from './afectadas-textos';
 
@@ -71,6 +72,7 @@ export class AfectadasDialog {
   protected readonly columnas = ['cuando', 'pista', 'organizador', 'jugadores', 'estado'];
   protected readonly maxJugadores = JUGADORES_POR_RESERVA;
   protected readonly fechaLarga = formatearFechaLarga;
+  protected readonly nombrePersona = nombrePersona;
   protected readonly rango = formatearRangoHoras;
 
   constructor() {

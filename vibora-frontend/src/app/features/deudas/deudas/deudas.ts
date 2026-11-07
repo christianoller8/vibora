@@ -8,6 +8,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTabsModule } from '@angular/material/tabs';
 import { EMPTY, Subject, catchError, debounceTime, filter, forkJoin, switchMap } from 'rxjs';
+import { recargarAlRecuperarSesion } from '../../../core/auth/recarga-sesion';
 import { mensajeDeError } from '../../../core/http/error.util';
 import { NotificacionesStore } from '../../../core/notificaciones/notificaciones.store';
 import {
@@ -22,6 +23,7 @@ import {
 } from '../../../shared/components/confirm-dialog/confirm-dialog';
 import { Cargo, EstadoCargo, Saldos, UsuarioCargo } from '../../../shared/models/cargo.model';
 import { TipoNotificacion } from '../../../shared/models/notificacion.model';
+import { nombreVisible } from '../../../shared/util/nombres';
 import { CargoService } from '../cargo.service';
 
 export type FiltroEstado = 'PENDIENTE' | 'TODOS';
@@ -47,8 +49,8 @@ const ETIQUETA_ESTADO: Record<EstadoCargo, string> = {
   REEMBOLSADO: 'Reembolsado',
 };
 
-function nombreCompleto(usuario: { nombre: string; apellidos: string | null }): string {
-  return `${usuario.nombre} ${usuario.apellidos ?? ''}`.trim();
+function nombreCompleto(usuario: { nombre: string | null; apellidos: string | null }): string {
+  return nombreVisible(usuario.nombre, usuario.apellidos);
 }
 
 @Component({
@@ -106,6 +108,10 @@ export class Deudas {
         takeUntilDestroyed(),
       )
       .subscribe(() => this.cargar$.next(false));
+    recargarAlRecuperarSesion(
+      () => this.error() !== null,
+      () => this.cargar(),
+    );
     this.cargar$.next(true);
   }
 

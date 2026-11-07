@@ -136,6 +136,21 @@ describe('ReservasClub', () => {
     expect(filas()[0].textContent).not.toContain('null');
   });
 
+  it('un jugador sin nombre ni apellidos sale como "Jugador" (también en el aria-label), sin "null"', async () => {
+    reservas.delClub.mockReturnValue(
+      of([
+        reserva(4, 'CONFIRMADA', HORA, {
+          usuario: { id: 1, nombre: null, apellidos: null, email: 'g@v.es' },
+        }),
+      ]),
+    );
+    await crear();
+
+    expect(filas()[0].querySelector('.jugador')!.textContent!.trim()).toBe('Jugador');
+    expect(filas()[0].innerHTML).toContain('Cancelar la reserva de Jugador en');
+    expect(filas()[0].textContent).not.toContain('null');
+  });
+
   it('ordena por hora de inicio', async () => {
     await crear();
 
@@ -151,6 +166,18 @@ describe('ReservasClub', () => {
     expect(botonCancelar(filas()[0])).toBeNull(); // pasada
     expect(botonCancelar(filas()[1])).not.toBeNull(); // futura confirmada
     expect(botonCancelar(filas()[2])).toBeNull(); // ya cancelada
+  });
+
+  it('el administrador NO está sujeto al plazo del propietario: "Cancelar" sigue activo aunque venga vencido', async () => {
+    const conPlazoVencido = {
+      ...reserva(5, 'CONFIRMADA', 2 * HORA),
+      cancelableHasta: new Date(Date.now() - HORA).toISOString(),
+    } as ReservaClub;
+    reservas.delClub.mockReturnValue(of([conPlazoVencido]));
+    await crear();
+
+    expect(botonCancelar(filas()[0])!.disabled).toBe(false);
+    expect(el().querySelector('.aviso-plazo')).toBeNull();
   });
 
   it('el botón de cancelar es accesible: nombra pista y jugador', async () => {

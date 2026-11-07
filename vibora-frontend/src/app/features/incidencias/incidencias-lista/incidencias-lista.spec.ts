@@ -65,12 +65,15 @@ describe('IncidenciasLista', () => {
   const personal = { listar: vi.fn() };
   let recibidas: Subject<Notificacion>;
 
+  let auth: ReturnType<typeof crearAuthFalso>;
+
   async function crear(usuario: Usuario | null = USUARIO_ADMIN): Promise<void> {
+    auth = crearAuthFalso(usuario);
     await TestBed.configureTestingModule({
       imports: [IncidenciasLista],
       providers: [
         provideRouter([]),
-        { provide: AuthService, useValue: crearAuthFalso(usuario) },
+        { provide: AuthService, useValue: auth },
         { provide: ClubService, useValue: clubService },
         { provide: IncidenciaService, useValue: incidencias },
         { provide: PersonalService, useValue: personal },
@@ -113,6 +116,26 @@ describe('IncidenciasLista', () => {
     vi.useRealTimers();
     vi.restoreAllMocks();
     localStorage.clear();
+  });
+
+  it('personas sin nombre (responsable y personal) salen como "Sin nombre", sin "null"', async () => {
+    const SIN_NOMBRE = null;
+    personal.listar.mockReturnValue(
+      of([
+        { usuarioId: 20, nombre: null, apellidos: null, email: 'p@x.es', rol: 'MANTENIMIENTO' },
+        { usuarioId: 21, nombre: null, apellidos: 'Ruiz', email: 'l@x.es', rol: 'MANTENIMIENTO' },
+      ]),
+    );
+    incidencias.listar.mockReturnValue(
+      of([incidencia(1, { asignadaA: { id: 20, nombre: SIN_NOMBRE } })]),
+    );
+
+    await crear(USUARIO_ADMIN);
+
+    expect(texto(filas()[0])).toContain('Responsable: Sin nombre');
+    expect(el().textContent).toContain('Ruiz');
+    expect(el().textContent).not.toContain('null');
+    expect(el().textContent).toContain('Sin nombre');
   });
 
   describe('club inicial', () => {
@@ -189,6 +212,79 @@ describe('IncidenciasLista', () => {
       expect(el().querySelector('[role="alert"]')?.textContent).toContain(
         'No se pudieron cargar los clubes',
       );
+    });
+  });
+
+  describe('error tras una caída del backend', () => {
+    const caida = () => throwError(() => new HttpErrorResponse({ status: 503 }));
+    const reintentar = (): HTMLButtonElement | null =>
+      el().querySelector<HTMLButtonElement>('button[data-accion="reintentar"]');
+
+    it('si fallan los clubes ofrece "Reintentar", que vuelve a pedirlos', async () => {
+      clubService.listar.mockReturnValueOnce(caida());
+      await crear();
+      expect(el().querySelector('[role="alert"]')).not.toBeNull();
+
+      reintentar()!.click();
+      await fixture.whenStable();
+
+      expect(clubService.listar).toHaveBeenCalledTimes(2);
+      expect(el().querySelector('[role="alert"]')).toBeNull();
+      expect(filas()).toHaveLength(2);
+    });
+
+    it('recarga sola los clubes cuando la sesión deja de ser incierta', async () => {
+      clubService.listar.mockReturnValueOnce(caida());
+      await crear();
+      expect(el().querySelector('[role="alert"]')).not.toBeNull();
+
+      auth.sesionIncierta.set(true);
+      await fixture.whenStable();
+      auth.sesionIncierta.set(false);
+      await fixture.whenStable();
+
+      expect(clubService.listar).toHaveBeenCalledTimes(2);
+      expect(filas()).toHaveLength(2);
+    });
+
+    it('recarga sola las incidencias cuando la sesión deja de ser incierta', async () => {
+      incidencias.listar.mockReturnValueOnce(caida());
+      await crear();
+      expect(el().querySelector('[role="alert"]')).not.toBeNull();
+
+      auth.sesionIncierta.set(true);
+      await fixture.whenStable();
+      auth.sesionIncierta.set(false);
+      await fixture.whenStable();
+
+      expect(incidencias.listar).toHaveBeenCalledTimes(2);
+      expect(filas()).toHaveLength(2);
+      expect(clubService.listar).toHaveBeenCalledTimes(1);
+    });
+
+    it('no recarga nada al recuperarse la sesión si no hay error', async () => {
+      await crear();
+
+      auth.sesionIncierta.set(true);
+      await fixture.whenStable();
+      auth.sesionIncierta.set(false);
+      await fixture.whenStable();
+
+      expect(incidencias.listar).toHaveBeenCalledTimes(1);
+      expect(clubService.listar).toHaveBeenCalledTimes(1);
+    });
+
+    it('al destruirse deja de escuchar la sesión', async () => {
+      incidencias.listar.mockReturnValueOnce(caida());
+      await crear();
+      auth.sesionIncierta.set(true);
+      await fixture.whenStable();
+
+      fixture.destroy();
+      auth.sesionIncierta.set(false);
+      await fixture.whenStable();
+
+      expect(incidencias.listar).toHaveBeenCalledTimes(1);
     });
   });
 

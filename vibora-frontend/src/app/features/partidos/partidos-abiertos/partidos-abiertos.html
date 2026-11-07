@@ -21,6 +21,9 @@
   <mat-spinner diameter="40" aria-label="Cargando partidos" />
 } @else if (error(); as mensaje) {
   <p class="error" role="alert">{{ mensaje }}</p>
+  <button mat-button type="button" data-accion="reintentar" (click)="reintentar()">
+    Reintentar
+  </button>
 } @else if (partidos().length === 0) {
   <p class="vacio">
     No hay partidos abiertos. Abre una de tus reservas desde "Mis reservas" para que otros se
@@ -51,7 +54,7 @@
           <mat-chip-set aria-label="Jugadores del partido" class="asientos">
             @for (jugador of partido.jugadores; track jugador.usuarioId) {
               <mat-chip class="jugador">
-                <span matChipAvatar>{{ jugador.nombre.charAt(0).toUpperCase() }}</span>
+                <span matChipAvatar>{{ inicialJugador(jugador) }}</span>
                 {{ nombreJugador(jugador) }}
               </mat-chip>
             }

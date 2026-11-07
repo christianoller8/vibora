@@ -4,7 +4,7 @@ export interface Usuario {
   id: number;
   email: string;
   nombre: string | null;
-  apellidos: string;
+  apellidos: string | null;
   rol: Rol;
   /** Club al que pertenece (null para un jugador sin club). */
   clubId: number | null;

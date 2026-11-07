@@ -89,11 +89,11 @@
     }
     <div>
       <dt>Reportada por</dt>
-      <dd>{{ i.reportadaPor.nombre }}</dd>
+      <dd>{{ nombrePersona(i.reportadaPor) }}</dd>
     </div>
     <div>
       <dt>Responsable</dt>
-      <dd>{{ i.asignadaA?.nombre ?? 'Sin asignar' }}</dd>
+      <dd>{{ i.asignadaA ? nombrePersona(i.asignadaA) : 'Sin asignar' }}</dd>
     </div>
     <div>
       <dt>Creada</dt>
@@ -249,7 +249,7 @@
           <mat-icon aria-hidden="true">{{ iconoDe(evento.tipo) }}</mat-icon>
           <div class="cuerpo">
             <p class="quien">
-              <span class="actor">{{ evento.usuario.nombre }}</span>
+              <span class="actor">{{ nombrePersona(evento.usuario) }}</span>
               {{ fraseDe(evento.tipo) }}
             </p>
             @if (cambio(evento); as texto) {

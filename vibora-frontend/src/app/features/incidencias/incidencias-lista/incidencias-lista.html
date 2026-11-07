@@ -17,6 +17,9 @@
   <mat-spinner diameter="40" aria-label="Cargando clubes" />
 } @else if (errorClubes(); as mensaje) {
   <p class="error" role="alert">{{ mensaje }}</p>
+  <button mat-button type="button" data-accion="reintentar" (click)="reintentarClubes()">
+    Reintentar
+  </button>
 } @else if (clubes().length === 0) {
   <p class="vacio">
     Todavía no hay clubes disponibles. Cuando un club se dé de alta podrás reportar sus incidencias
@@ -106,7 +109,7 @@
               }}</span>
             </span>
             @if (incidencia.asignadaA; as responsable) {
-              <span class="responsable">Responsable: {{ responsable.nombre }}</span>
+              <span class="responsable">Responsable: {{ nombrePersona(responsable) }}</span>
             }
           </div>
           <app-insignia

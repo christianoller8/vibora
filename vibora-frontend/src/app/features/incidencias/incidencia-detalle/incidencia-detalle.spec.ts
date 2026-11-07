@@ -232,6 +232,26 @@ describe('IncidenciaDetalle (página)', () => {
       expect(texto(q('h1'))).toBe('Foco fundido');
     });
 
+    it('personas sin nombre (reportante, responsable y autor de eventos) salen como "Sin nombre"', async () => {
+      const SIN_NOMBRE = null;
+      incidencias.obtener.mockReturnValue(
+        of(
+          detalle({
+            reportadaPor: { id: 1, nombre: SIN_NOMBRE },
+            asignadaA: { id: 20, nombre: SIN_NOMBRE },
+            eventos: [evento(1, 'CREADA', { usuario: { id: 1, nombre: SIN_NOMBRE } })],
+          }),
+        ),
+      );
+
+      await crear();
+
+      const valores = Array.from(el().querySelectorAll('.meta dd')).map((dd) => texto(dd));
+      expect(valores.filter((v) => v === 'Sin nombre')).toHaveLength(2); // reportante y responsable
+      expect(texto(q('.actor'))).toBe('Sin nombre');
+      expect(el().textContent).not.toContain('null');
+    });
+
     it('si no existe (404) muestra el mensaje y permite reintentar', async () => {
       incidencias.obtener.mockReturnValueOnce(
         throwError(() => http(404, { error: 'Incidencia no encontrada' })),

@@ -69,10 +69,10 @@ export type TipoEventoIncidencia =
   | 'BLOQUEO_CREADO'
   | 'BLOQUEO_LEVANTADO';
 
-/** Persona implicada en una incidencia: solo id y nombre. */
+/** Persona implicada en una incidencia: solo id y nombre (null si la persona no tiene ni nombre ni apellidos). */
 export interface PersonaIncidencia {
   id: number;
-  nombre: string;
+  nombre: string | null;
 }
 
 /** Fila del listado (sin descripción ni historial). */
@@ -158,7 +158,7 @@ export interface FiltrosIncidencias {
 export interface MiembroPersonal {
   usuarioId: number;
   nombre: string | null;
-  apellidos: string;
+  apellidos: string | null;
   email: string;
   rol: Rol;
 }

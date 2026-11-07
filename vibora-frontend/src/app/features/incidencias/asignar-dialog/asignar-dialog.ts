@@ -15,6 +15,7 @@ import {
   PersonaIncidencia,
   PrioridadIncidencia,
 } from '../../../shared/models/incidencia.model';
+import { nombreVisible } from '../../../shared/util/nombres';
 import { PersonalService } from '../../club/personal.service';
 import { esConflictoDeVersion, mensajeDeAccion } from '../errores-incidencia';
 import { IncidenciaService } from '../incidencia.service';
@@ -29,7 +30,8 @@ export interface AsignarDialogData {
   asignadaA: PersonaIncidencia | null;
 }
 
-const nombreCompleto = (p: MiembroPersonal): string => `${p.nombre ?? ''} ${p.apellidos}`.trim();
+const nombreCompleto = (p: MiembroPersonal): string =>
+  nombreVisible(p.nombre, p.apellidos, 'Sin nombre');
 
 /** Asignar o reasignar una incidencia a alguien de mantenimiento del club, con prioridad opcional. */
 @Component({

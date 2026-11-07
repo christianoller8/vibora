@@ -3,10 +3,11 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Subject, of, throwError } from 'rxjs';
+import { AuthService } from '../../../core/auth/auth.service';
 import { NotificacionesStore } from '../../../core/notificaciones/notificaciones.store';
 import { Cargo, EstadoCargo, Saldos } from '../../../shared/models/cargo.model';
 import { Notificacion, TipoNotificacion } from '../../../shared/models/notificacion.model';
-import { crearNotificacion } from '../../../testing/test-utils';
+import { crearAuthFalso, crearNotificacion } from '../../../testing/test-utils';
 import { CargoService } from '../cargo.service';
 import { Deudas } from './deudas';
 
@@ -43,10 +44,13 @@ describe('Deudas', () => {
   const snack = { open: vi.fn() };
   let recibidas: Subject<Notificacion>;
 
+  let auth: ReturnType<typeof crearAuthFalso>;
+
   async function crear(): Promise<void> {
     await TestBed.configureTestingModule({
       imports: [Deudas],
       providers: [
+        { provide: AuthService, useValue: auth },
         { provide: NotificacionesStore, useValue: { recibidas$: recibidas.asObservable() } },
         { provide: CargoService, useValue: cargos },
         { provide: MatDialog, useValue: dialogo },
@@ -70,6 +74,7 @@ describe('Deudas', () => {
 
   beforeEach(() => {
     vi.resetAllMocks();
+    auth = crearAuthFalso();
     recibidas = new Subject<Notificacion>();
     cargos.mios.mockReturnValue(of([cargo(1), cargo(2, 'PAGADO')]));
     cargos.porCobrar.mockReturnValue(
@@ -77,6 +82,110 @@ describe('Deudas', () => {
     );
     cargos.saldos.mockReturnValue(of(SALDOS));
     dialogo.open.mockReturnValue({ afterClosed: () => of(true) });
+  });
+
+  describe('error de carga (por ejemplo tras una caída del backend)', () => {
+    const caida = () => throwError(() => new HttpErrorResponse({ status: 503 }));
+    const reintentar = (): HTMLButtonElement | null =>
+      el().querySelector<HTMLButtonElement>('button[data-accion="reintentar"]');
+
+    it('muestra el error con un botón Reintentar que vuelve a cargar', async () => {
+      cargos.saldos.mockReturnValueOnce(caida());
+      await crear();
+      expect(el().querySelector('.error')).not.toBeNull();
+      expect(reintentar()).not.toBeNull();
+
+      reintentar()!.click();
+      await fixture.whenStable();
+
+      expect(cargos.saldos).toHaveBeenCalledTimes(2);
+      expect(el().querySelector('.error')).toBeNull();
+      expect(reintentar()).toBeNull();
+      expect(el().querySelector('[data-lista="debo"]')).not.toBeNull();
+    });
+
+    it('recarga sola cuando la sesión deja de ser incierta estando en error', async () => {
+      auth.sesionIncierta.set(true);
+      cargos.saldos.mockReturnValueOnce(caida());
+      await crear();
+      expect(el().querySelector('.error')).not.toBeNull();
+
+      auth.sesionIncierta.set(false);
+      await fixture.whenStable();
+
+      expect(cargos.saldos).toHaveBeenCalledTimes(2);
+      expect(el().querySelector('.error')).toBeNull();
+    });
+
+    it('no recarga al recuperarse la sesión si la página no está en error', async () => {
+      await crear();
+
+      auth.sesionIncierta.set(true);
+      await fixture.whenStable();
+      auth.sesionIncierta.set(false);
+      await fixture.whenStable();
+
+      expect(cargos.saldos).toHaveBeenCalledTimes(1);
+    });
+
+    it('al destruirse deja de escuchar la sesión', async () => {
+      auth.sesionIncierta.set(true);
+      cargos.saldos.mockReturnValueOnce(caida());
+      await crear();
+
+      fixture.destroy();
+      auth.sesionIncierta.set(false);
+      await fixture.whenStable();
+
+      expect(cargos.saldos).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('personas sin nombre (el nombre es opcional al registrarse)', () => {
+    const SIN_NOMBRE = null;
+
+    it('pinta el apellido o "Jugador" y nunca el texto "null"', async () => {
+      cargos.mios.mockReturnValue(
+        of([cargo(1, 'PENDIENTE', { acreedor: { id: 1, nombre: SIN_NOMBRE, apellidos: 'García' } })]),
+      );
+      cargos.porCobrar.mockReturnValue(
+        of([cargo(3, 'PENDIENTE', { deudor: { id: 4, nombre: SIN_NOMBRE, apellidos: null } })]),
+      );
+      cargos.saldos.mockReturnValue(
+        of({
+          ...SALDOS,
+          saldos: [
+            { usuarioId: 1, nombre: SIN_NOMBRE, apellidos: 'García', debo: 1, meDeben: 0, neto: -1 },
+            { usuarioId: 2, nombre: SIN_NOMBRE, apellidos: null, debo: 0, meDeben: 1, neto: 1 },
+          ],
+        }),
+      );
+      await crear();
+
+      const personas = Array.from(el().querySelectorAll('.persona')).map((p) =>
+        p.textContent!.trim(),
+      );
+      expect(personas).toEqual(['García', 'Jugador']);
+      expect(texto('[data-lista="debo"] .cargo')).toContain('A: García');
+      expect(el().textContent).not.toContain('null');
+
+      await abrirMeDeben();
+      expect(texto('[data-lista="me-deben"] .cargo')).toContain('De: Jugador');
+      expect(el().textContent).not.toContain('null');
+    });
+
+    it('el diálogo de pago nombra al acreedor sin "null"', async () => {
+      cargos.mios.mockReturnValue(
+        of([cargo(1, 'PENDIENTE', { acreedor: { id: 1, nombre: SIN_NOMBRE, apellidos: null } })]),
+      );
+      dialogo.open.mockReturnValue({ afterClosed: () => of(false) }); // se mira el diálogo, sin pagar
+      await crear();
+
+      lista('debo')[0].querySelector<HTMLButtonElement>('button[data-accion="pagar"]')!.click();
+
+      const datos = dialogo.open.mock.calls[0][1].data;
+      expect(datos.lineas).toContainEqual({ etiqueta: 'Pagar a', valor: 'Jugador' });
+    });
   });
 
   it('al entrar pide los pendientes de ambas listas y los saldos', async () => {

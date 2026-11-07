@@ -21,6 +21,7 @@ import {
 } from 'rxjs';
 import { ClubService } from '../../../core/api/club.service';
 import { AuthService } from '../../../core/auth/auth.service';
+import { recargarAlRecuperarSesion } from '../../../core/auth/recarga-sesion';
 import { mensajeDeError } from '../../../core/http/error.util';
 import { NotificacionesStore } from '../../../core/notificaciones/notificaciones.store';
 import { formatearFechaHora } from '../../../core/util/fecha';
@@ -39,6 +40,7 @@ import {
 } from '../../../shared/models/incidencia.model';
 import { TipoNotificacion } from '../../../shared/models/notificacion.model';
 import { Pista } from '../../../shared/models/pista.model';
+import { nombrePersona, nombreVisible } from '../../../shared/util/nombres';
 import { PersonalService } from '../../club/personal.service';
 import { elegirClubInicial, guardarClubPreferido, leerClubPreferido } from '../club-preferido';
 import { IncidenciaService } from '../incidencia.service';
@@ -121,6 +123,7 @@ export class IncidenciasLista {
   protected readonly exacta = formatearFechaHora;
   protected readonly relativa = tiempoRelativo;
   protected readonly sinAsignar = SIN_ASIGNAR;
+  protected readonly nombrePersona = nombrePersona;
 
   /** Administrador del club que se está viendo: solo él tiene filtros de pista y de asignación. */
   protected readonly esAdminDelClub = computed(
@@ -168,6 +171,19 @@ export class IncidenciasLista {
       )
       .subscribe(() => this.cargar$.next('silenciosa'));
 
+    recargarAlRecuperarSesion(
+      () => this.errorClubes() !== null,
+      () => this.cargarClubes(),
+    );
+    recargarAlRecuperarSesion(
+      () => this.error() !== null,
+      () => this.cargar(),
+    );
+
+    this.cargarClubes();
+  }
+
+  protected reintentarClubes(): void {
     this.cargarClubes();
   }
 
@@ -226,10 +242,12 @@ export class IncidenciasLista {
   }
 
   protected nombreCompleto(p: MiembroPersonal): string {
-    return `${p.nombre ?? ''} ${p.apellidos}`.trim();
+    return nombreVisible(p.nombre, p.apellidos, 'Sin nombre');
   }
 
   private cargarClubes(): void {
+    this.cargandoClubes.set(true);
+    this.errorClubes.set(null);
     this.clubService.listar().subscribe({
       next: (clubes) => {
         this.clubes.set(clubes);

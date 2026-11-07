@@ -16,6 +16,7 @@ import { EMPTY, Observable, Subject, catchError, merge, switchMap } from 'rxjs';
 import { ClubService } from '../../../core/api/club.service';
 import { mensajeDeError } from '../../../core/http/error.util';
 import { formatearFechaHora } from '../../../core/util/fecha';
+import { nombrePersona } from '../../../shared/util/nombres';
 import {
   BloqueoCreado,
   BloqueoPista,
@@ -90,6 +91,7 @@ export class BloqueosClub implements OnInit {
   protected readonly etiquetaEstado = ETIQUETA_ESTADO_BLOQUEO;
   protected readonly mensajeVacio = MENSAJE_VACIO;
   protected readonly formatearFechaHora = formatearFechaHora;
+  protected readonly nombrePersona = nombrePersona;
   protected readonly columnas = ['pista', 'motivo', 'vigencia', 'estado', 'creador', 'acciones'];
 
   /** Emite `true` si la carga debe mostrar el spinner (entrada, cambio de pista o de filtro) o `false` si es un refresco. */

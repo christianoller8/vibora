@@ -14,6 +14,7 @@ import {
 } from '../../../shared/components/confirm-dialog/confirm-dialog';
 import { MiembroPersonal } from '../../../shared/models/incidencia.model';
 import { ETIQUETA_ROL } from '../../../shared/models/usuario.model';
+import { nombreVisible } from '../../../shared/util/nombres';
 import { PersonalService } from '../personal.service';
 import { PersonalDialog, PersonalDialogData } from './personal-dialog';
 
@@ -69,7 +70,7 @@ export class PersonalClub implements OnInit {
   }
 
   protected nombreCompleto(persona: MiembroPersonal): string {
-    return `${persona.nombre ?? ''} ${persona.apellidos}`.trim();
+    return nombreVisible(persona.nombre, persona.apellidos, 'Sin nombre');
   }
 
   protected etiquetaDeRol(persona: MiembroPersonal): string {

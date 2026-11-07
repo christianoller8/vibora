@@ -4,6 +4,7 @@
   <mat-spinner diameter="40" aria-label="Cargando deudas" />
 } @else if (error(); as mensaje) {
   <p class="error" role="alert">{{ mensaje }}</p>
+  <button mat-button type="button" data-accion="reintentar" (click)="cargar()">Reintentar</button>
 } @else {
   @if (saldos(); as resumen) {
     <mat-card class="saldos" appearance="outlined">

@@ -25,6 +25,7 @@ import {
 } from '../../../shared/components/confirm-dialog/confirm-dialog';
 import { TipoNotificacion } from '../../../shared/models/notificacion.model';
 import { EstadoReserva, ReservaClub } from '../../../shared/models/reserva.model';
+import { nombreVisible } from '../../../shared/util/nombres';
 import { ReservaService } from '../../reservas/reserva.service';
 
 /** Notificaciones que pueden cambiar las reservas del club (alguien se apunta o sale, se cancela una reserva). */
@@ -129,7 +130,7 @@ export class ReservasClub implements OnInit {
   }
 
   protected nombreJugador(reserva: ReservaClub): string {
-    return `${reserva.usuario.nombre ?? ''} ${reserva.usuario.apellidos}`.trim();
+    return nombreVisible(reserva.usuario.nombre, reserva.usuario.apellidos);
   }
 
   /** Solo se puede cancelar una reserva confirmada que todavía no ha empezado. */

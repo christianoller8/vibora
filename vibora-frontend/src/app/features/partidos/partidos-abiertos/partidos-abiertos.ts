@@ -22,6 +22,7 @@ import {
   switchMap,
 } from 'rxjs';
 import { ClubService } from '../../../core/api/club.service';
+import { recargarAlRecuperarSesion } from '../../../core/auth/recarga-sesion';
 import { mensajeDeError } from '../../../core/http/error.util';
 import { NotificacionesStore } from '../../../core/notificaciones/notificaciones.store';
 import {
@@ -38,6 +39,7 @@ import {
 import { Club } from '../../../shared/models/club.model';
 import { TipoNotificacion } from '../../../shared/models/notificacion.model';
 import { JugadorPartido, Partido } from '../../../shared/models/partido.model';
+import { inicial, nombreVisible } from '../../../shared/util/nombres';
 import { PartidoService } from '../partido.service';
 
 /** Notificaciones que cambian lo que esta página muestra (plazas, jugadores, partidos cancelados). */
@@ -124,6 +126,14 @@ export class PartidosAbiertos {
         // sin lista de clubes solo falta el filtro; los partidos se siguen viendo
       },
     });
+    recargarAlRecuperarSesion(
+      () => this.error() !== null,
+      () => this.reintentar(),
+    );
+    this.recargar$.next(true);
+  }
+
+  protected reintentar(): void {
     this.recargar$.next(true);
   }
 
@@ -139,9 +149,13 @@ export class PartidosAbiertos {
   }
 
   protected nombreJugador(jugador: JugadorPartido): string {
-    return jugador.inicialApellido
-      ? `${jugador.nombre} ${jugador.inicialApellido}.`
-      : jugador.nombre;
+    const nombre = nombreVisible(jugador.nombre);
+    return jugador.inicialApellido ? `${nombre} ${jugador.inicialApellido}.` : nombre;
+  }
+
+  /** Letra del avatar: la del nombre; si falta, la del apellido; "?" si no hay ninguna. */
+  protected inicialJugador(jugador: JugadorPartido): string {
+    return inicial(jugador.nombre, jugador.inicialApellido);
   }
 
   protected puedeApuntarse(partido: Partido): boolean {

@@ -4,11 +4,12 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Subject, of, throwError } from 'rxjs';
 import { ClubService } from '../../../core/api/club.service';
+import { AuthService } from '../../../core/auth/auth.service';
 import { NotificacionesStore } from '../../../core/notificaciones/notificaciones.store';
 import { hoyEnMadrid } from '../../../core/util/fecha';
 import { Notificacion, TipoNotificacion } from '../../../shared/models/notificacion.model';
 import { Partido } from '../../../shared/models/partido.model';
-import { crearNotificacion } from '../../../testing/test-utils';
+import { crearAuthFalso, crearNotificacion } from '../../../testing/test-utils';
 import { PartidoService } from '../partido.service';
 import { PartidosAbiertos } from './partidos-abiertos';
 
@@ -42,10 +43,13 @@ describe('PartidosAbiertos', () => {
   const snack = { open: vi.fn() };
   let recibidas: Subject<Notificacion>;
 
+  let auth: ReturnType<typeof crearAuthFalso>;
+
   async function crear(): Promise<void> {
     await TestBed.configureTestingModule({
       imports: [PartidosAbiertos],
       providers: [
+        { provide: AuthService, useValue: auth },
         { provide: NotificacionesStore, useValue: { recibidas$: recibidas.asObservable() } },
         { provide: PartidoService, useValue: partidos },
         { provide: ClubService, useValue: clubes },
@@ -64,6 +68,7 @@ describe('PartidosAbiertos', () => {
 
   beforeEach(() => {
     vi.resetAllMocks();
+    auth = crearAuthFalso();
     recibidas = new Subject<Notificacion>();
     partidos.listar.mockReturnValue(of([partido(1), partido(2)]));
     clubes.listar.mockReturnValue(
@@ -73,6 +78,63 @@ describe('PartidosAbiertos', () => {
       ]),
     );
     dialogo.open.mockReturnValue({ afterClosed: () => of(true) });
+  });
+
+  describe('error de carga (por ejemplo tras una caída del backend)', () => {
+    const caida = () => throwError(() => new HttpErrorResponse({ status: 503 }));
+    const reintentar = (): HTMLButtonElement | null =>
+      el().querySelector<HTMLButtonElement>('button[data-accion="reintentar"]');
+
+    it('muestra el error con un botón Reintentar que vuelve a cargar', async () => {
+      partidos.listar.mockReturnValueOnce(caida());
+      await crear();
+      expect(el().querySelector('.error')).not.toBeNull();
+      expect(reintentar()).not.toBeNull();
+
+      reintentar()!.click();
+      await fixture.whenStable();
+
+      expect(partidos.listar).toHaveBeenCalledTimes(2);
+      expect(el().querySelector('.error')).toBeNull();
+      expect(reintentar()).toBeNull();
+      expect(tarjetas()).toHaveLength(2);
+    });
+
+    it('recarga sola cuando la sesión deja de ser incierta estando en error', async () => {
+      auth.sesionIncierta.set(true);
+      partidos.listar.mockReturnValueOnce(caida());
+      await crear();
+      expect(el().querySelector('.error')).not.toBeNull();
+
+      auth.sesionIncierta.set(false);
+      await fixture.whenStable();
+
+      expect(partidos.listar).toHaveBeenCalledTimes(2);
+      expect(tarjetas()).toHaveLength(2);
+    });
+
+    it('no recarga al recuperarse la sesión si la página no está en error', async () => {
+      await crear();
+
+      auth.sesionIncierta.set(true);
+      await fixture.whenStable();
+      auth.sesionIncierta.set(false);
+      await fixture.whenStable();
+
+      expect(partidos.listar).toHaveBeenCalledTimes(1);
+    });
+
+    it('al destruirse deja de escuchar la sesión', async () => {
+      auth.sesionIncierta.set(true);
+      partidos.listar.mockReturnValueOnce(caida());
+      await crear();
+
+      fixture.destroy();
+      auth.sesionIncierta.set(false);
+      await fixture.whenStable();
+
+      expect(partidos.listar).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('carga los partidos abiertos sin filtros al entrar', async () => {
@@ -119,6 +181,31 @@ describe('PartidosAbiertos', () => {
     expect(jugadores[1]).not.toContain('.');
     expect(tarjeta.querySelectorAll('.asiento-libre')).toHaveLength(2);
     expect(tarjeta.querySelectorAll('.jugador, .asiento-libre')).toHaveLength(4);
+  });
+
+  it('un jugador sin nombre no rompe la lista: "Jugador" más la inicial, y avatar con la inicial', async () => {
+    const SIN_NOMBRE = null;
+    partidos.listar.mockReturnValue(
+      of([
+        partido(1, {
+          jugadores: [
+            { usuarioId: 8, nombre: SIN_NOMBRE, inicialApellido: 'G' },
+            { usuarioId: 9, nombre: SIN_NOMBRE, inicialApellido: '' },
+          ],
+        }),
+        partido(2),
+      ]),
+    );
+    await crear();
+
+    expect(tarjetas()).toHaveLength(2);
+    const jugadores = Array.from(tarjetas()[0].querySelectorAll('.jugador'));
+    const textos = jugadores.map((j) => j.textContent!.replace(/\s+/g, ' ').trim());
+    expect(textos[0]).toContain('Jugador G.');
+    expect(textos[1]).toContain('Jugador');
+    expect(jugadores[0].querySelector('[matChipAvatar]')!.textContent!.trim()).toBe('G');
+    expect(jugadores[1].querySelector('[matChipAvatar]')!.textContent!.trim()).toBe('?');
+    expect(tarjetas()[0].textContent).not.toContain('null');
   });
 
   it('muestra las insignias "Organizador" y "Ya apuntado"', async () => {

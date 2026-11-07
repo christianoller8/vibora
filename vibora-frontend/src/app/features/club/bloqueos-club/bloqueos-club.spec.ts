@@ -117,6 +117,26 @@ describe('BloqueosClub', () => {
     cierraCon(undefined);
   });
 
+  it('quien creó o levantó el bloqueo sin nombre sale como "Sin nombre", sin "null"', async () => {
+    const SIN_NOMBRE = null;
+    bloqueos.listar.mockReturnValue(
+      of([
+        bloqueo(3, { creadoPor: { id: 9, nombre: SIN_NOMBRE } }),
+        bloqueo(4, {
+          levantadoEn: '2026-07-16T09:00:00Z',
+          levantadoPor: { id: 9, nombre: SIN_NOMBRE },
+          activo: false,
+        }),
+      ]),
+    );
+
+    await crear();
+
+    expect(texto(filas()[0])).toContain('Sin nombre');
+    expect(texto(filas()[1])).toContain('Por Sin nombre el');
+    expect(el().textContent).not.toContain('null');
+  });
+
   describe('carga y filtros', () => {
     it('pide las pistas del club, elige la primera y pide SUS bloqueos activos', async () => {
       await crear();

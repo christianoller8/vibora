@@ -16,6 +16,11 @@ export interface Reserva {
   /** Jugadores apuntados (el organizador cuenta), de 4. */
   jugadores: number;
   cuotaPorJugador: number;
+  /**
+   * Instante ISO-8601 (UTC) hasta el que su propietario puede cancelarla (inicio menos las horas configuradas).
+   * null o ausente = plazo desconocido: no se aplica ninguno. El administrador del club no está sujeto a él.
+   */
+  cancelableHasta?: string | null;
 }
 
 /** Reserva vista por el administrador del club, con un resumen de quien reservó. */
@@ -33,7 +38,7 @@ export interface ReservaClub {
 export interface UsuarioReserva {
   id: number;
   nombre: string | null;
-  apellidos: string;
+  apellidos: string | null;
   email: string;
 }
 

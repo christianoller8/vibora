@@ -86,6 +86,17 @@ describe('AfectadasDialog', () => {
       expect(filas()).toHaveLength(2);
     });
 
+    it('un organizador sin nombre sale como "Sin nombre" y no rompe el diálogo', async () => {
+      const SIN_NOMBRE = null;
+      await crear({
+        ...DATOS,
+        afectadas: [{ ...R1, organizador: { id: 1, nombre: SIN_NOMBRE, email: 'ana@x.es' } }],
+      });
+
+      expect(texto(filas()[0].querySelector('.organizador .nombre'))).toBe('Sin nombre');
+      expect(el().textContent).not.toContain('null');
+    });
+
     it('si no las traen, las pide por club, pista y bloqueo y muestra un spinner mientras tanto', async () => {
       bloqueos.afectadas.mockReturnValue(NEVER);
 
