@@ -6,7 +6,7 @@ import jakarta.validation.constraints.Size;
 
 /** Body de registro. No incluye rol ni club: siempre se crea un JUGADOR. */
 public record RegistroRequest(
-		@NotBlank @Email @Size(max = 255) String email,
+		@NotBlank @Email @Size(max = AuthLimites.EMAIL_MAX) String email,
 		// BCrypt admite 72 BYTES (no caracteres): ver PoliticaPassword
 		@NotBlank @Size(min = 8) @PasswordMaxBytes String password,
 		@Size(max = 255) String nombre,
