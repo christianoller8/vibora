@@ -4,6 +4,9 @@
   <mat-spinner diameter="40" aria-label="Cargando reservas" />
 } @else if (error(); as mensaje) {
   <p class="error" role="alert">{{ mensaje }}</p>
+  <button mat-button type="button" data-accion="reintentar" (click)="reintentar()">
+    Reintentar
+  </button>
 } @else if (reservas().length === 0) {
   <p class="vacio">
     Todavía no tienes reservas. Elige una casilla libre en la agenda para empezar.
@@ -43,11 +46,15 @@
             mat-stroked-button
             type="button"
             data-accion="cancelar"
-            [disabled]="cancelando()"
+            [disabled]="cancelando() || !enPlazo(reserva)"
+            [attr.aria-describedby]="enPlazo(reserva) ? null : 'plazo-' + reserva.id"
             (click)="cancelar(reserva)"
           >
             Cancelar
           </button>
+          @if (!enPlazo(reserva)) {
+            <p class="aviso-plazo" [id]="'plazo-' + reserva.id">{{ textoPlazo(reserva) }}</p>
+          }
         }
       </li>
     }

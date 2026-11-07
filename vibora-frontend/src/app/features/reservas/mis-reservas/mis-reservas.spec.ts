@@ -3,10 +3,11 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Subject, of, throwError } from 'rxjs';
+import { AuthService } from '../../../core/auth/auth.service';
 import { NotificacionesStore } from '../../../core/notificaciones/notificaciones.store';
 import { Notificacion, TipoNotificacion } from '../../../shared/models/notificacion.model';
 import { Reserva } from '../../../shared/models/reserva.model';
-import { crearNotificacion } from '../../../testing/test-utils';
+import { crearAuthFalso, crearNotificacion } from '../../../testing/test-utils';
 import { PartidoService } from '../../partidos/partido.service';
 import { ReservaService } from '../reserva.service';
 import { MisReservas } from './mis-reservas';
@@ -43,10 +44,13 @@ describe('MisReservas', () => {
   const CANCELADA = reserva(3, 'CANCELADA', 72 * HORA);
   let recibidas: Subject<Notificacion>;
 
+  let auth: ReturnType<typeof crearAuthFalso>;
+
   async function crear(): Promise<void> {
     await TestBed.configureTestingModule({
       imports: [MisReservas],
       providers: [
+        { provide: AuthService, useValue: auth },
         { provide: NotificacionesStore, useValue: { recibidas$: recibidas.asObservable() } },
         { provide: ReservaService, useValue: reservas },
         { provide: PartidoService, useValue: partidos },
@@ -65,9 +69,67 @@ describe('MisReservas', () => {
 
   beforeEach(() => {
     vi.resetAllMocks();
+    auth = crearAuthFalso();
     recibidas = new Subject<Notificacion>();
     reservas.mias.mockReturnValue(of([FUTURA, PASADA, CANCELADA]));
     dialogo.open.mockReturnValue({ afterClosed: () => of(true) });
+  });
+
+  describe('error de carga (por ejemplo tras una caída del backend)', () => {
+    const caida = () => throwError(() => new HttpErrorResponse({ status: 503 }));
+    const reintentar = (): HTMLButtonElement | null =>
+      el().querySelector<HTMLButtonElement>('button[data-accion="reintentar"]');
+
+    it('muestra el error con un botón Reintentar que vuelve a cargar', async () => {
+      reservas.mias.mockReturnValueOnce(caida());
+      await crear();
+      expect(el().querySelector('.error')).not.toBeNull();
+      expect(reintentar()).not.toBeNull();
+
+      reintentar()!.click();
+      await fixture.whenStable();
+
+      expect(reservas.mias).toHaveBeenCalledTimes(2);
+      expect(el().querySelector('.error')).toBeNull();
+      expect(reintentar()).toBeNull();
+      expect(filas()).toHaveLength(3);
+    });
+
+    it('recarga sola cuando la sesión deja de ser incierta estando en error', async () => {
+      auth.sesionIncierta.set(true);
+      reservas.mias.mockReturnValueOnce(caida());
+      await crear();
+      expect(el().querySelector('.error')).not.toBeNull();
+
+      auth.sesionIncierta.set(false);
+      await fixture.whenStable();
+
+      expect(reservas.mias).toHaveBeenCalledTimes(2);
+      expect(filas()).toHaveLength(3);
+    });
+
+    it('no recarga al recuperarse la sesión si la página no está en error', async () => {
+      await crear();
+
+      auth.sesionIncierta.set(true);
+      await fixture.whenStable();
+      auth.sesionIncierta.set(false);
+      await fixture.whenStable();
+
+      expect(reservas.mias).toHaveBeenCalledTimes(1);
+    });
+
+    it('al destruirse deja de escuchar la sesión', async () => {
+      auth.sesionIncierta.set(true);
+      reservas.mias.mockReturnValueOnce(caida());
+      await crear();
+
+      fixture.destroy();
+      auth.sesionIncierta.set(false);
+      await fixture.whenStable();
+
+      expect(reservas.mias).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('lista las reservas en el orden que devuelve el backend', async () => {
@@ -169,6 +231,115 @@ describe('MisReservas', () => {
     await fixture.whenStable();
 
     expect(snack.open.mock.calls[0][0]).toContain('Fuera del plazo de cancelación');
+  });
+
+  describe('plazo de cancelación del propietario (cancelableHasta)', () => {
+    const AHORA = Date.parse('2026-07-15T10:00:00Z'); // 12:00 en Madrid
+    const iso = (ms: number): string => new Date(ms).toISOString();
+
+    function conPlazo(cancelableHasta: string | null | undefined): Reserva {
+      const base = reserva(1, 'CONFIRMADA', 0);
+      return {
+        ...base,
+        inicio: iso(AHORA + 24 * HORA),
+        fin: iso(AHORA + 25.5 * HORA),
+        ...(cancelableHasta === undefined ? {} : { cancelableHasta }),
+      };
+    }
+
+    async function crearConReloj(r: Reserva): Promise<void> {
+      vi.useFakeTimers({ now: AHORA, toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+      reservas.mias.mockReturnValue(of([r]));
+      await crear();
+    }
+    const boton = (): HTMLButtonElement => botonCancelar(filas()[0])!;
+    const aviso = (): string => el().querySelector('.aviso-plazo')?.textContent?.trim() ?? '';
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('antes del plazo el botón está activo y no hay aviso', async () => {
+      await crearConReloj(conPlazo(iso(AHORA + 2 * HORA)));
+
+      expect(boton().disabled).toBe(false);
+      expect(aviso()).toBe('');
+    });
+
+    it('justo en el instante límite todavía se puede cancelar ("hasta" es inclusivo)', async () => {
+      await crearConReloj(conPlazo(iso(AHORA)));
+
+      expect(boton().disabled).toBe(false);
+    });
+
+    it('pasado el plazo desactiva "Cancelar" y explica hasta cuándo (hora de Madrid)', async () => {
+      await crearConReloj(conPlazo('2026-07-15T09:30:00Z')); // 11:30 en Madrid
+
+      expect(boton().disabled).toBe(true);
+      expect(aviso()).toBe('Solo se puede cancelar hasta el 15 de julio de 2026, 11:30');
+      expect(boton().getAttribute('aria-describedby')).toBe(
+        el().querySelector('.aviso-plazo')!.id,
+      );
+    });
+
+    it.each([null, undefined])('sin plazo conocido (%s) se mantiene el comportamiento de siempre', async (plazo) => {
+      await crearConReloj(conPlazo(plazo));
+
+      expect(boton().disabled).toBe(false);
+      expect(aviso()).toBe('');
+    });
+
+    it('el diálogo de cancelación muestra el plazo; si no se conoce, no añade la línea', async () => {
+      dialogo.open.mockReturnValue({ afterClosed: () => of(false) });
+      await crearConReloj(conPlazo('2026-07-15T12:00:00Z')); // 14:00 en Madrid
+      boton().click();
+      await fixture.whenStable();
+      expect(dialogo.open.mock.calls[0][1].data.lineas).toContainEqual({
+        etiqueta: 'Cancelable hasta',
+        valor: '15 de julio de 2026, 14:00',
+      });
+
+      dialogo.open.mockClear();
+      TestBed.resetTestingModule();
+      await crearConReloj(conPlazo(null));
+      boton().click();
+      await fixture.whenStable();
+      const etiquetas = dialogo.open.mock.calls[0][1].data.lineas.map(
+        (l: { etiqueta: string }) => l.etiqueta,
+      );
+      expect(etiquetas).not.toContain('Cancelable hasta');
+    });
+
+    it('con el plazo vencido, cancelar() no abre el diálogo aunque se invoque', async () => {
+      await crearConReloj(conPlazo('2026-07-15T09:30:00Z'));
+
+      fixture.componentInstance['cancelar'](fixture.componentInstance['reservas']()[0]);
+
+      expect(dialogo.open).not.toHaveBeenCalled();
+    });
+
+    it('se desactiva solo cuando el reloj cruza el instante límite con la página abierta', async () => {
+      await crearConReloj(conPlazo(iso(AHORA + 2 * HORA)));
+      expect(boton().disabled).toBe(false);
+
+      await vi.advanceTimersByTimeAsync(2 * HORA - 1);
+      await fixture.whenStable();
+      expect(boton().disabled).toBe(false); // aún en el último milisegundo
+
+      await vi.advanceTimersByTimeAsync(2);
+      await fixture.whenStable();
+      expect(boton().disabled).toBe(true);
+      expect(aviso()).toContain('Solo se puede cancelar hasta el 15 de julio de 2026, 14:00');
+    });
+
+    it('al destruir la página no queda ningún temporizador pendiente', async () => {
+      await crearConReloj(conPlazo(iso(AHORA + 2 * HORA)));
+      expect(vi.getTimerCount()).toBeGreaterThan(0);
+
+      fixture.destroy();
+
+      expect(vi.getTimerCount()).toBe(0);
+    });
   });
 
   describe('notificaciones en tiempo real', () => {

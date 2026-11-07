@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
@@ -6,9 +6,11 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSlideToggleChange, MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { EMPTY, Observable, Subject, catchError, debounceTime, filter, switchMap } from 'rxjs';
+import { recargarAlRecuperarSesion } from '../../../core/auth/recarga-sesion';
 import { mensajeDeError } from '../../../core/http/error.util';
 import { NotificacionesStore } from '../../../core/notificaciones/notificaciones.store';
 import {
+  formatearFechaHora,
   formatearFechaLarga,
   formatearPrecio,
   formatearRangoHoras,
@@ -16,6 +18,7 @@ import {
 import {
   ConfirmDialog,
   ConfirmDialogData,
+  ConfirmDialogLinea,
 } from '../../../shared/components/confirm-dialog/confirm-dialog';
 import { TipoNotificacion } from '../../../shared/models/notificacion.model';
 import { EstadoReserva, Reserva } from '../../../shared/models/reserva.model';
@@ -23,6 +26,8 @@ import { PartidoService } from '../../partidos/partido.service';
 import { ReservaService } from '../reserva.service';
 
 const JUGADORES_POR_PARTIDO = 4;
+/** setTimeout no admite esperas mayores de 2^31-1 ms. */
+const MAX_ESPERA_MS = 2 ** 31 - 1;
 
 /** Notificaciones que cambian lo que esta página muestra (jugadores apuntados, reservas canceladas). */
 const TIPOS_QUE_AFECTAN: ReadonlySet<TipoNotificacion> = new Set<TipoNotificacion>([
@@ -60,6 +65,8 @@ export class MisReservas {
   private readonly notificaciones = inject(NotificacionesStore);
 
   protected readonly reservas = signal<Reserva[]>([]);
+  /** Reloj de la página (ms): las comprobaciones de plazo dependen de él y por eso se repintan al avanzar. */
+  private readonly ahora = signal(Date.now());
   protected readonly cargando = signal(true);
   protected readonly cancelando = signal(false);
   protected readonly error = signal<string | null>(null);
@@ -95,6 +102,29 @@ export class MisReservas {
       )
       .subscribe(() => this.cargar$.next(false));
 
+    recargarAlRecuperarSesion(
+      () => this.error() !== null,
+      () => this.reintentar(),
+    );
+
+    // Reloj de la página: se despierta justo cuando pasa el siguiente instante relevante (fin del plazo de
+    // cancelación o inicio de una reserva) para que los botones se actualicen sin recargar.
+    effect((alLimpiar) => {
+      const ahora = this.ahora();
+      const proximo = this.reservas()
+        .flatMap((r) => [r.cancelableHasta, r.inicio])
+        .map((instante) => (instante ? Date.parse(instante) : NaN))
+        .filter((ms) => ms >= ahora)
+        .reduce((min, ms) => Math.min(min, ms), Infinity);
+      if (proximo === Infinity) {
+        return;
+      }
+      // +1 ms porque "hasta" es inclusivo; el tope evita el desbordamiento de setTimeout (~24,8 días)
+      const espera = Math.min(proximo - Date.now() + 1, MAX_ESPERA_MS);
+      const temporizador = setTimeout(() => this.ahora.set(Date.now()), Math.max(espera, 0));
+      alLimpiar(() => clearTimeout(temporizador));
+    });
+
     this.cargar$.next(true);
   }
 
@@ -104,7 +134,19 @@ export class MisReservas {
 
   /** Solo se puede cancelar una reserva confirmada que todavía no ha empezado. */
   protected puedeCancelar(reserva: Reserva): boolean {
-    return reserva.estado === 'CONFIRMADA' && new Date(reserva.inicio).getTime() > Date.now();
+    return reserva.estado === 'CONFIRMADA' && new Date(reserva.inicio).getTime() > this.ahora();
+  }
+
+  /**
+   * Plazo del propietario: "hasta" es inclusivo. Sin `cancelableHasta` (null o ausente) no se conoce plazo y
+   * se deja cancelar como siempre; el backend sigue siendo quien manda.
+   */
+  protected enPlazo(reserva: Reserva): boolean {
+    return !reserva.cancelableHasta || Date.parse(reserva.cancelableHasta) >= this.ahora();
+  }
+
+  protected textoPlazo(reserva: Reserva): string {
+    return `Solo se puede cancelar hasta el ${formatearFechaHora(reserva.cancelableHasta!)}`;
   }
 
   /** Abrir o cerrar el partido solo tiene sentido en una reserva confirmada que aún no ha empezado. */
@@ -150,18 +192,25 @@ export class MisReservas {
   }
 
   protected cancelar(reserva: Reserva): void {
-    if (this.cancelando()) {
+    if (this.cancelando() || !this.enPlazo(reserva)) {
       return;
+    }
+    const lineas: ConfirmDialogLinea[] = [
+      { etiqueta: 'Club', valor: reserva.clubNombre },
+      { etiqueta: 'Pista', valor: reserva.pistaNombre },
+      { etiqueta: 'Fecha', valor: formatearFechaLarga(reserva.inicio) },
+      { etiqueta: 'Hora', valor: formatearRangoHoras(reserva.inicio, reserva.fin) },
+    ];
+    if (reserva.cancelableHasta) {
+      lineas.push({
+        etiqueta: 'Cancelable hasta',
+        valor: formatearFechaHora(reserva.cancelableHasta),
+      });
     }
     const datos: ConfirmDialogData = {
       titulo: 'Cancelar reserva',
       mensaje: '¿Seguro que quieres cancelar esta reserva?',
-      lineas: [
-        { etiqueta: 'Club', valor: reserva.clubNombre },
-        { etiqueta: 'Pista', valor: reserva.pistaNombre },
-        { etiqueta: 'Fecha', valor: formatearFechaLarga(reserva.inicio) },
-        { etiqueta: 'Hora', valor: formatearRangoHoras(reserva.inicio, reserva.fin) },
-      ],
+      lineas,
       textoConfirmar: 'Cancelar reserva',
       textoCancelar: 'Mantener',
     };
@@ -193,6 +242,10 @@ export class MisReservas {
         );
       },
     });
+  }
+
+  protected reintentar(): void {
+    this.cargar$.next(true);
   }
 
   private consultar(conSpinner: boolean): Observable<Reserva[]> {
