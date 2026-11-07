@@ -83,6 +83,78 @@ describe('guards de autenticación', () => {
     });
   });
 
+  describe('con token pero sin usuario cargado (sesión incierta)', () => {
+    let authIncierta: AuthService;
+
+    function ejecutarIncierta(guard: CanActivateFn): boolean | string {
+      localStorage.setItem(CLAVE_TOKEN, crearJwt(segundosDesdeAhora(3600)));
+      TestBed.configureTestingModule({
+        providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
+      });
+      const auth = TestBed.inject(AuthService);
+      authIncierta = auth;
+      auth.sesionIncierta.set(true);
+      expect(auth.usuario()).toBeNull();
+      const router = TestBed.inject(Router);
+      const resultado = TestBed.runInInjectionContext(() =>
+        guard({} as ActivatedRouteSnapshot, { url: '/club' } as RouterStateSnapshot),
+      );
+      return resultado instanceof UrlTree ? router.serializeUrl(resultado) : (resultado as boolean);
+    }
+
+    it('authGuard deja pasar: hay sesión, solo falta cargar el perfil', () => {
+      expect(ejecutarIncierta(authGuard)).toBe(true);
+    });
+
+    it('adminClubGuard no lanza y manda a /agenda mientras no se sepa el rol', () => {
+      expect(ejecutarIncierta(adminClubGuard)).toBe('/agenda');
+    });
+
+    it('sinClubGuard no lanza y manda a /agenda mientras no se sepa el rol', () => {
+      expect(ejecutarIncierta(sinClubGuard)).toBe('/agenda');
+    });
+
+    it('invitadoGuard sigue rebotando a /agenda (el token existe)', () => {
+      expect(ejecutarIncierta(invitadoGuard)).toBe('/agenda');
+    });
+
+    it('adminClubGuard recuerda la URL pedida para restaurarla cuando se cargue el usuario', () => {
+      expect(ejecutarIncierta(adminClubGuard)).toBe('/agenda');
+      expect(authIncierta.destinoPendiente).toBe('/club');
+    });
+
+    it('sinClubGuard recuerda la URL pedida para restaurarla cuando se cargue el usuario', () => {
+      expect(ejecutarIncierta(sinClubGuard)).toBe('/agenda');
+      expect(authIncierta.destinoPendiente).toBe('/club');
+    });
+
+    it('authGuard e invitadoGuard no recuerdan nada', () => {
+      ejecutarIncierta(authGuard);
+      expect(authIncierta.destinoPendiente).toBeNull();
+      TestBed.resetTestingModule();
+      ejecutarIncierta(invitadoGuard);
+      expect(authIncierta.destinoPendiente).toBeNull();
+    });
+  });
+
+  describe('denegación con el usuario YA cargado (sesión no incierta)', () => {
+    it('no recuerda destino: un jugador que pide /club simplemente va a /agenda', () => {
+      TestBed.configureTestingModule({
+        providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
+      });
+      localStorage.setItem(CLAVE_TOKEN, crearJwt(segundosDesdeAhora(3600)));
+      const auth = TestBed.inject(AuthService);
+      auth.usuario.set(USUARIO_JUGADOR);
+
+      const resultado = TestBed.runInInjectionContext(() =>
+        adminClubGuard({} as ActivatedRouteSnapshot, { url: '/club' } as RouterStateSnapshot),
+      );
+
+      expect(resultado instanceof UrlTree).toBe(true);
+      expect(auth.destinoPendiente).toBeNull();
+    });
+  });
+
   describe('invitadoGuard', () => {
     it('deja pasar a un usuario sin sesión', () => {
       expect(ejecutar(invitadoGuard, '/login', false)).toBe(true);

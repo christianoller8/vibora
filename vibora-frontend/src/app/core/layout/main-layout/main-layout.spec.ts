@@ -148,6 +148,61 @@ describe('MainLayout', () => {
     expect(el().querySelector('mat-chip, .rol')).toBeNull();
   });
 
+  describe('sesión incierta (hay token pero /me no ha podido cargar el usuario)', () => {
+    const aviso = (): HTMLElement | null => el().querySelector('[data-aviso="servidor"]');
+
+    function authIncierta(): ReturnType<typeof crearAuthFalso> {
+      const auth = crearAuthFalso();
+      auth.usuario.set(null); // token presente, usuario sin cargar
+      auth.sesionIncierta.set(true);
+      return auth;
+    }
+
+    it('muestra un aviso no bloqueante y sigue pintando el menú y el contenido', async () => {
+      await crear(authIncierta());
+
+      expect(aviso()?.getAttribute('role')).toBe('status');
+      expect(aviso()?.textContent).toContain('No se pudo contactar con el servidor');
+      expect(el().querySelector('router-outlet')).not.toBeNull();
+      expect(el().querySelectorAll('a[mat-list-item]').length).toBeGreaterThan(0);
+    });
+
+    it('sin usuario cargado no pinta nombre, rol ni entradas de club', async () => {
+      await crear(authIncierta());
+
+      expect(el().querySelector('.usuario')).toBeNull();
+      expect(el().querySelector('.rol')).toBeNull();
+      const hrefs = Array.from(el().querySelectorAll('a[mat-list-item]')).map((a) =>
+        a.getAttribute('href'),
+      );
+      expect(hrefs.some((h) => h?.startsWith('/club'))).toBe(false);
+    });
+
+    it('"Reintentar" vuelve a pedir el usuario', async () => {
+      const auth = authIncierta();
+      await crear(auth);
+
+      el().querySelector<HTMLButtonElement>('[data-aviso="servidor"] button')!.click();
+
+      expect(auth.reintentarCarga).toHaveBeenCalledTimes(1);
+    });
+
+    it('el aviso desaparece cuando la sesión deja de ser incierta', async () => {
+      const auth = authIncierta();
+      await crear(auth);
+
+      auth.sesionIncierta.set(false);
+      await fixture.whenStable();
+
+      expect(aviso()).toBeNull();
+    });
+
+    it('con la sesión normal no hay aviso', async () => {
+      await crear(crearAuthFalso());
+      expect(aviso()).toBeNull();
+    });
+  });
+
   it('al salir cierra la sesión y navega a /login', async () => {
     const auth = crearAuthFalso();
     await crear(auth);

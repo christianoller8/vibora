@@ -99,6 +99,10 @@ export function crearAuthFalso(usuario: Usuario | null = USUARIO_JUGADOR) {
   return {
     token,
     usuario: usuarioSignal,
+    sesionIncierta: signal(false),
+    reintentarCarga: vi.fn(),
+    recordarDestino: vi.fn(),
+    destinoPendiente: null,
     estaAutenticado: computed(() => token() !== null),
     rol: computed(() => usuarioSignal()?.rol ?? null),
     clubId: computed(() => usuarioSignal()?.clubId ?? null),

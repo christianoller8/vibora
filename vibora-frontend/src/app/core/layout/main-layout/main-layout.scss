@@ -36,6 +36,21 @@
   white-space: nowrap;
 }
 
+.aviso-servidor {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.5rem 1.5rem;
+  background: var(--mat-sys-error-container);
+  color: var(--mat-sys-on-error-container);
+  font: var(--mat-sys-body-medium);
+
+  span {
+    flex: 1 1 12rem;
+  }
+}
+
 .activo {
   font-weight: 500;
 }
