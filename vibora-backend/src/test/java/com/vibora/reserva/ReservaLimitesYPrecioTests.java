@@ -38,6 +38,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * reserva) y tope de precio. Reloj fijado en 2030-01-01T00:00Z; club 08:00-23:00, casillas de 90 minutos.
  */
 @Import(RelojTestConfig.class)
+// Estos tests prueban el tope ABSOLUTO de fechas (hasta 2100); el horizonte de reserva (60 dias) tiene sus propios tests
+// (ReservaCupoYHorizonteTests), asi que aqui se amplia para que no tape el caso "ultimo dia permitido".
+@org.springframework.test.context.TestPropertySource(properties = "vibora.reservas.horizonte-dias=100000")
 class ReservaLimitesYPrecioTests extends ApiTestBase {
 
 	private static final ZoneId MADRID = ZoneId.of("Europe/Madrid");

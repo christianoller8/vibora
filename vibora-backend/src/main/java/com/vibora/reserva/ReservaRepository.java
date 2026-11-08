@@ -12,20 +12,46 @@ import java.util.Optional;
 
 public interface ReservaRepository extends JpaRepository<Reserva, Long> {
 
-	/** Hay una reserva del estado dado que solapa [inicio, fin) (intervalos semiabiertos). */
-	boolean existsByPistaIdAndEstadoAndInicioLessThanAndFinGreaterThan(Long pistaId, EstadoReserva estado,
-			Instant fin, Instant inicio);
+	/*
+	 * Las dos consultas de solape comparan rangos con tstzrange(inicio, fin) && tstzrange(?, ?) y el estado como LITERAL
+	 * ('CONFIRMADA'): son exactamente la expresion y el predicado del indice gist parcial de reserva_sin_solape
+	 * (pista_id, tstzrange(inicio, fin)) WHERE estado = 'CONFIRMADA' (V1), asi PostgreSQL puede usarlo. El predicado
+	 * "inicio < fin AND fin > inicio" solo podia usar el btree por inicio. Semantica identica: tstzrange es semiabierto [),
+	 * un rango que empieza donde acaba otro no lo solapa. El estado no es un parametro a proposito: con un parametro el
+	 * planificador no puede demostrar el predicado del indice parcial en un plan generico. Constantes publicas para que
+	 * los tests hagan EXPLAIN de la SQL real.
+	 */
+	String SQL_HAY_SOLAPE = """
+			select exists (
+			  select 1 from reserva r
+			  where r.pista_id = :pistaId and r.estado = 'CONFIRMADA'
+			    and tstzrange(r.inicio, r.fin) && tstzrange(cast(:inicio as timestamptz), cast(:fin as timestamptz)))
+			""";
+
+	String SQL_SOLAPADAS_CONFIRMADAS = """
+			select r.* from reserva r
+			where r.pista_id = :pistaId and r.estado = 'CONFIRMADA'
+			  and tstzrange(r.inicio, r.fin) && tstzrange(cast(:desde as timestamptz), cast(:hasta as timestamptz))
+			order by r.inicio, r.id
+			""";
+
+	/** Hay una reserva CONFIRMADA de la pista que solapa [inicio, fin) (intervalos semiabiertos; las canceladas no cuentan). */
+	@Query(value = SQL_HAY_SOLAPE, nativeQuery = true)
+	boolean haySolape(Long pistaId, Instant inicio, Instant fin);
 
 	/** El usuario ha reservado (en cualquier estado) alguna pista del club. */
 	boolean existsByUsuarioIdAndPistaClubId(Long usuarioId, Long clubId);
 
-	/** Reservas del estado dado que solapan [desde, hasta). */
-	List<Reserva> findByPistaIdAndEstadoAndInicioLessThanAndFinGreaterThan(Long pistaId, EstadoReserva estado,
-			Instant hasta, Instant desde);
+	/** Reservas CONFIRMADAS de la pista que solapan [desde, hasta), por hora de inicio (agenda). */
+	@Query(value = SQL_SOLAPADAS_CONFIRMADAS, nativeQuery = true)
+	List<Reserva> solapadasConfirmadas(Long pistaId, Instant desde, Instant hasta);
 
 	/** Con pista, club y jugadores en la misma consulta: evita una consulta por reserva al construir la respuesta. */
 	@EntityGraph(attributePaths = { "pista", "pista.club", "participantes" })
 	List<Reserva> findByUsuarioIdOrderByCreadoEnDescIdDesc(Long usuarioId);
+
+	/** Reservas del usuario en ese estado que empiezan despues de {@code ahora} (las "activas" para el tope por jugador). */
+	long countByUsuarioIdAndEstadoAndInicioAfter(Long usuarioId, EstadoReserva estado, Instant ahora);
 
 	/**
 	 * Con bloqueo de escritura de la fila (SELECT ... FOR UPDATE): altas, bajas, cancelaciones y pagos de una misma

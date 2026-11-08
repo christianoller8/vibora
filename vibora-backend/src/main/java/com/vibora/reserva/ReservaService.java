@@ -22,6 +22,7 @@ import com.vibora.pista.PistaRepository;
 import com.vibora.tarifa.CalculadoraPrecio;
 import com.vibora.tarifa.TarifaFranja;
 import com.vibora.tarifa.TarifaFranjaRepository;
+import com.vibora.usuario.BloqueoUsuario;
 import com.vibora.usuario.Usuario;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -60,6 +61,7 @@ public class ReservaService {
 	private final FacturaService facturaService;
 	private final TextosAviso textos;
 	private final CalculadoraPrecio calculadora;
+	private final BloqueoUsuario bloqueoUsuario;
 	private final ReservaProperties propiedades;
 	private final Clock reloj;
 	private final ZoneId zona;
@@ -69,16 +71,27 @@ public class ReservaService {
 	 * (FOR SHARE). Varias reservas a la vez no se estorban (la restriccion reserva_sin_solape sigue protegiendo cada
 	 * casilla), pero crear un bloqueo pide el bloqueo exclusivo de esa fila: espera a las reservas en curso y las que
 	 * llegan despues esperan a que termine, y entonces ven el bloqueo. Asi no hay reserva que se cuele entre el calculo
-	 * de las "afectadas" y la confirmacion del bloqueo. Orden de bloqueos: pista (compartido) y despues lo de siempre;
-	 * ninguna otra operacion pide una fila de reserva, de cargo o de usuario ANTES que la de pista.
+	 * de las "afectadas" y la confirmacion del bloqueo.
+	 * <p>
+	 * Orden de bloqueos: usuario (exclusivo, FOR NO KEY UPDATE; serializa el tope de reservas activas) -> pista
+	 * (compartido) -> lo de siempre. El usuario es lo PRIMERO que se pide, asi que mientras se espera por el no se
+	 * retiene nada. Un ciclo exigiria que quien tiene la pista o una reserva espere despues por un usuario: crear un
+	 * bloqueo de pista (incidencia -> bloqueo -> pista, y luego reservas -> cargos -> factura_serie) y cancelar solo
+	 * insertan filas hijas que apuntan al usuario (avisos), lo que toma FOR KEY SHARE, compatible con FOR NO KEY UPDATE
+	 * (BloqueoUsuarioCompatibilidadTests); el resto de flujos que bloquean usuarios (personal, club, incidencias) no
+	 * piden despues ni una pista ni una reserva.
 	 */
 	@Transactional
 	public ReservaResponse crear(Long clubId, Long pistaId, ReservaRequest peticion) {
 		Club club = buscarClub(clubId);
+		// El tope de reservas activas es "contar y luego insertar": se serializa bloqueando la fila del usuario ANTES de
+		// contar. Es el primer bloqueo de la transaccion (usuario -> pista(compartido) -> inserciones): nadie que tenga la
+		// pista o una reserva espera a un usuario, asi que no hay ciclo (ver el analisis en BloqueoUsuario).
+		Usuario usuario = bloqueoUsuario.bloquear(autorizacion.usuarioActual());
 		Pista pista = pistas.findByIdAndClubIdParaCompartir(pistaId, clubId)
 				.orElseThrow(() -> new RecursoNoEncontradoException("Pista no encontrada"));
-		Usuario usuario = autorizacion.usuarioActual();
 		LimitesFecha.validarInstante(peticion.inicio()); // antes de usar el instante en calculos o consultas
+		exigirDentroDelHorizonte(peticion.inicio());
 		if (!pista.isActiva()) {
 			throw new ConflictoException("La pista no está activa");
 		}
@@ -90,14 +103,17 @@ public class ReservaService {
 		if (!inicio.isAfter(ahora)) {
 			throw new IllegalArgumentException("No se puede reservar una casilla que ya ha empezado");
 		}
+		if (reservas.countByUsuarioIdAndEstadoAndInicioAfter(usuario.getId(), EstadoReserva.CONFIRMADA, ahora)
+				>= propiedades.maxActivasPorUsuario()) {
+			throw new ConflictoException("Has alcanzado el máximo de reservas activas");
+		}
 		if (bloqueos.haySolape(pistaId, inicio, fin, ahora)) {
 			throw new ConflictoException("La pista no está disponible por mantenimiento");
 		}
 		BigDecimal precio = calculadora.calcular(tarifas.findByClubId(clubId), inicio, fin, zona);
 
 		// Comprobacion amable; la que manda es la restriccion de la BD (carreras entre peticiones)
-		if (reservas.existsByPistaIdAndEstadoAndInicioLessThanAndFinGreaterThan(pistaId, EstadoReserva.CONFIRMADA,
-				fin, inicio)) {
+		if (reservas.haySolape(pistaId, inicio, fin)) {
 			throw pistaOcupada();
 		}
 		Reserva reserva = new Reserva();
@@ -131,14 +147,22 @@ public class ReservaService {
 		}
 	}
 
+	/** Solo se reserva hasta el dia (natural, en la zona del club) de hoy + horizonte-dias, ese dia incluido. */
+	private void exigirDentroDelHorizonte(Instant inicio) {
+		LocalDate ultimoDia = LocalDate.now(reloj.withZone(zona)).plusDays(propiedades.horizonteDias());
+		if (!inicio.isBefore(ultimoDia.plusDays(1).atStartOfDay(zona).toInstant())) {
+			throw new IllegalArgumentException(
+					"Solo se puede reservar con hasta %d días de antelación".formatted(propiedades.horizonteDias()));
+		}
+	}
+
 	@Transactional(readOnly = true)
 	public List<CasillaAgenda> agenda(Long clubId, Long pistaId, LocalDate fecha) {
 		Club club = buscarClub(clubId);
 		Pista pista = buscarPista(clubId, pistaId);
 		LimitesFecha.validar(fecha);
 		Duration duracion = duracion();
-		List<Reserva> ocupadas = reservas.findByPistaIdAndEstadoAndInicioLessThanAndFinGreaterThan(pistaId,
-				EstadoReserva.CONFIRMADA, inicioDelDia(fecha.plusDays(1)), inicioDelDia(fecha));
+		List<Reserva> ocupadas = reservas.solapadasConfirmadas(pistaId, inicioDelDia(fecha), inicioDelDia(fecha.plusDays(1)));
 		List<TarifaFranja> franjas = tarifas.findByClubId(clubId);
 		Instant ahora = reloj.instant();
 		List<BloqueoPista> bloqueados = bloqueos.activosEntre(pistaId, inicioDelDia(fecha), inicioDelDia(fecha.plusDays(1)),

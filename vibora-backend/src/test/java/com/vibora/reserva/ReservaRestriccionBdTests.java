@@ -113,8 +113,7 @@ class ReservaRestriccionBdTests extends PostgresTestBase {
 		reservas.saveAndFlush(TestData.reserva(pista, dueño, inicio, inicio.plusSeconds(3600), EstadoReserva.CONFIRMADA));
 		clearInvocations(reservas); // que verify() solo cuente lo que hace el servicio
 		// la comprobacion amable "no ve" el solape: solo queda la restriccion de la BD
-		doReturn(false).when(reservas).existsByPistaIdAndEstadoAndInicioLessThanAndFinGreaterThan(
-				anyLong(), any(), any(), any());
+		doReturn(false).when(reservas).haySolape(anyLong(), any(), any());
 
 		mvc.perform(post("/api/clubes/" + club.getId() + "/pistas/" + pista.getId() + "/reservas")
 						.header("Authorization", token).contentType(MediaType.APPLICATION_JSON)
@@ -123,8 +122,7 @@ class ReservaRestriccionBdTests extends PostgresTestBase {
 				.andExpect(jsonPath("$.error").value("La pista ya está reservada en ese horario"));
 
 		// la comprobacion previa SI se ejecuto (y fue esquivada), y el intento llego a insertar
-		verify(reservas).existsByPistaIdAndEstadoAndInicioLessThanAndFinGreaterThan(eq(pista.getId()),
-				eq(EstadoReserva.CONFIRMADA), any(), any());
+		verify(reservas).haySolape(eq(pista.getId()), any(), any());
 		verify(reservas).saveAndFlush(any(Reserva.class));
 
 		long confirmadas = reservas.findAll().stream()
