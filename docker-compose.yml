@@ -54,6 +54,8 @@ services:
       context: ./vibora-backend
     image: vibora-backend:local
     restart: unless-stopped
+    # Mas que la fase de apagado ordenado de Spring (20 s): si no, Docker mandaria SIGKILL a los 10 s por defecto.
+    stop_grace_period: 30s
     environment:
       # Toda la configuracion por entorno (relaxed binding de Spring). Nada de esto va dentro de la imagen.
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-vibora}
