@@ -10,6 +10,7 @@ import org.springframework.dao.ConcurrencyFailureException;
 import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.jdbc.UncategorizedSQLException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
@@ -54,6 +55,24 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, String>> modificadaPorOtraPersona(OptimisticLockingFailureException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(Map.of("error", "La incidencia fue modificada por otra persona, recarga"));
+    }
+
+    // 429: limite de uso superado (login/registro, cuota diaria de fotos). Retry-After en segundos solo si se conoce
+    @ExceptionHandler(LimiteExcedidoException.class)
+    public ResponseEntity<Map<String, String>> limiteExcedido(LimiteExcedidoException ex) {
+        ResponseEntity.BodyBuilder respuesta = ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .contentType(MediaType.APPLICATION_JSON);
+        if (ex.getRetryAfterSegundos() > 0) {
+            respuesta.header("Retry-After", String.valueOf(ex.getRetryAfterSegundos()));
+        }
+        return respuesta.body(Map.of("error", ex.getMessage()));
+    }
+
+    // 503: el servidor esta saturado de trabajo pesado (decodificacion de imagenes); reintentable
+    @ExceptionHandler(ServicioOcupadoException.class)
+    public ResponseEntity<Map<String, String>> servicioOcupado(ServicioOcupadoException ex) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).contentType(MediaType.APPLICATION_JSON)
+                .header("Retry-After", "5").body(Map.of("error", ex.getMessage()));
     }
 
     // 401: credenciales incorrectas (mensaje generico, sin revelar si el email existe)
@@ -135,8 +154,27 @@ public class GlobalExceptionHandler {
     // 409: la BD rechazo el dato por una restriccion (unicidad, FK...) que ningun servicio habia traducido antes
     @ExceptionHandler({ DataIntegrityViolationException.class, org.hibernate.exception.ConstraintViolationException.class })
     public ResponseEntity<Map<String, String>> integridad(Exception ex) {
+        // Restricciones de la BD (V7) con un mensaje propio: la misma frase que da la comprobacion previa del servicio
+        if (violaRestriccion(ex, "tarifa_sin_solape")) {
+            log.debug("Franja de tarifa solapada rechazada por la restricción tarifa_sin_solape");
+            return json(HttpStatus.CONFLICT, TARIFA_SOLAPADA);
+        }
         log.warn("Violación de integridad no traducida por el servicio", ex);
         return json(HttpStatus.CONFLICT, CONFLICTO);
+    }
+
+    /** La restriccion (o indice) con ese nombre aparece en el mensaje de alguna causa de la cadena. */
+    private static boolean violaRestriccion(Throwable ex, String nombre) {
+        for (Throwable t = ex; t != null; t = t.getCause() == t ? null : t.getCause()) {
+            if (t instanceof org.hibernate.exception.ConstraintViolationException cve
+                    && nombre.equals(cve.getConstraintName())) {
+                return true;
+            }
+            if (t.getMessage() != null && t.getMessage().contains("\"" + nombre + "\"")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     // 409: interbloqueo, bloqueo no obtenido o fallo de serializacion fuera del flujo de reservas (que tiene el suyo).
@@ -147,6 +185,19 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, String>> concurrencia(Exception ex) {
         log.warn("Conflicto de concurrencia no traducido por el servicio", ex);
         return json(HttpStatus.CONFLICT, CONCURRENCIA);
+    }
+
+    // 409: lock_timeout de la sesion (SQLSTATE 55P03, lock_not_available) en una sentencia JDBC directa; Spring no la
+    // clasifica como fallo de concurrencia (llega como UncategorizedSQLException) y sin esto acabaria en un 500.
+    // Cualquier otro SQL no clasificado sigue siendo un 500 generico.
+    @ExceptionHandler(UncategorizedSQLException.class)
+    public ResponseEntity<Map<String, String>> sqlNoClasificado(UncategorizedSQLException ex) {
+        if ("55P03".equals(ex.getSQLException().getSQLState())) {
+            log.warn("Bloqueo no obtenido a tiempo (lock_timeout)", ex);
+            return json(HttpStatus.CONFLICT, CONCURRENCIA);
+        }
+        log.error("Error SQL no clasificado", ex);
+        return json(HttpStatus.INTERNAL_SERVER_ERROR, INTERNO);
     }
 
     // 503: base de datos inalcanzable o pool de conexiones agotado
@@ -209,7 +260,8 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(estado).contentType(MediaType.APPLICATION_JSON).body(Map.of("error", mensaje));
     }
 
-    private static final String CONFLICTO = "Conflicto con los datos existentes";
+    private static final String TARIFA_SOLAPADA = "La franja se solapa con otra del mismo día";
+    private static final String CONFLICTO ="Conflicto con los datos existentes";
     private static final String CONCURRENCIA = "La operación no se pudo completar por concurrencia, inténtalo de nuevo";
     private static final String NO_DISPONIBLE = "Servicio no disponible temporalmente";
     private static final String INTERNO = "Error interno";

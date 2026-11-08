@@ -58,7 +58,7 @@ class MigracionV6Tests extends PostgresTestBase {
 					.doesNotContain("reserva_pista_inicio_idx");
 		}
 
-		Flyway.configure().dataSource(url, usuario, password).load().migrate();
+		Flyway.configure().dataSource(url, usuario, password).target("6").load().migrate();
 
 		try (Connection c = DriverManager.getConnection(url, usuario, password); Statement s = c.createStatement()) {
 			assertThat(lista(s, "select indexdef from pg_indexes where indexname = 'reserva_pista_inicio_idx'"))
