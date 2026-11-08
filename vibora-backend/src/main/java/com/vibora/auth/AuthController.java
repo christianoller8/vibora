@@ -1,5 +1,6 @@
 package com.vibora.auth;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -17,16 +18,27 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
 	private final AuthService authService;
+	private final LimitadorAuth limitador;
 
+	/**
+	 * La IP es la del socket ({@code getRemoteAddr}): detras de nginx, Tomcat (server.forward-headers-strategy=native) la
+	 * sustituye por la del cliente real SOLO si el par directo es un proxy de confianza; un X-Forwarded-For puesto por
+	 * el cliente no cuenta. El limite se comprueba tras validar el cuerpo (los 400 no cuentan) y antes del hash.
+	 */
 	@PostMapping("/registro")
 	@ResponseStatus(HttpStatus.CREATED)
-	public UsuarioResumen registro(@Valid @RequestBody RegistroRequest peticion) {
+	public UsuarioResumen registro(@Valid @RequestBody RegistroRequest peticion, HttpServletRequest http) {
+		limitador.admitirRegistro(http.getRemoteAddr());
 		return authService.registrar(peticion);
 	}
 
 	@PostMapping("/login")
-	public TokenResponse login(@Valid @RequestBody LoginRequest peticion) {
-		return authService.login(peticion);
+	public TokenResponse login(@Valid @RequestBody LoginRequest peticion, HttpServletRequest http) {
+		String ip = http.getRemoteAddr();
+		LimitadorAuth.Admision admision = limitador.admitirLogin(ip, peticion.email());
+		TokenResponse token = authService.login(peticion); // 401 uniforme si falla: el intento ya esta contado
+		limitador.loginCorrecto(ip, peticion.email(), admision); // solo toca la ventana en la que se admitio
+		return token;
 	}
 
 	/** El nombre de la autenticacion es el subject del JWT (el email). */

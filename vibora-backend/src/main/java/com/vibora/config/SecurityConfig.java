@@ -28,7 +28,7 @@ import java.util.List;
 
 @Configuration
 @EnableMethodSecurity
-@EnableConfigurationProperties(JwtProperties.class)
+@EnableConfigurationProperties({ JwtProperties.class, com.vibora.auth.SeguridadProperties.class })
 public class SecurityConfig {
 
 	@Bean
