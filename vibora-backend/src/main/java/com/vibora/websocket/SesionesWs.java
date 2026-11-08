@@ -45,9 +45,13 @@ public class SesionesWs {
 	private record Entrada(WebSocketSession sesion, String usuario, Instant caduca, boolean expulsada) {
 	}
 
-	public SesionesWs(Clock reloj, @Lazy @Qualifier("clientOutboundChannel") MessageChannel salida) {
+	private final int maxPorUsuario;
+
+	public SesionesWs(Clock reloj, @Lazy @Qualifier("clientOutboundChannel") MessageChannel salida,
+			@org.springframework.beans.factory.annotation.Value("${vibora.websocket.max-sesiones-por-usuario:10}") int maxPorUsuario) {
 		this.reloj = reloj;
 		this.salida = salida;
+		this.maxPorUsuario = Math.max(1, maxPorUsuario);
 	}
 
 	// ---- ciclo de vida (lo alimentan el decorador del handler y el interceptor de entrada) ----
@@ -72,10 +76,20 @@ public class SesionesWs {
 		};
 	}
 
-	/** El CONNECT valido el token: se apunta de quien es la sesion y cuando caduca. */
-	void autenticada(String idSesion, String usuario, Instant caduca) {
+	/**
+	 * El CONNECT valido el token: se apunta de quien es la sesion y cuando caduca. Antes se comprueba el tope de
+	 * sesiones simultaneas de esa persona (vibora.websocket.max-sesiones-por-usuario, 10 por defecto): las demas sesiones
+	 * suyas VIGENTES (ni caducadas ni ya expulsadas) cuentan; si ya estan todas ocupadas, el CONNECT se rechaza con un ERROR
+	 * "Demasiadas conexiones" y se cierra. Comprobar y apuntar es atomico (synchronized): dos CONNECT a la vez no se cuelan.
+	 */
+	synchronized void autenticada(String idSesion, String usuario, Instant caduca) {
 		if (idSesion == null) {
 			return;
+		}
+		long vigentes = sesiones.entrySet().stream().filter(e -> !e.getKey().equals(idSesion)).map(java.util.Map.Entry::getValue)
+				.filter(e -> usuario.equals(e.usuario()) && !e.expulsada() && !caducada(e)).count();
+		if (vigentes >= maxPorUsuario) {
+			throw new AccesoStompDenegadoException(AccesoStompDenegadoException.DEMASIADAS_CONEXIONES);
 		}
 		sesiones.compute(idSesion, (id, actual) -> new Entrada(actual == null ? null : actual.sesion(), usuario, caduca,
 				actual != null && actual.expulsada()));
