@@ -260,11 +260,11 @@ class ValidadorImagenTests {
 	}
 
 	@Test
-	void elLimiteSonVeinticincoMegapixeles_exactamenteEseTamanoPasa_unoMasNo() {
-		Imagen enElLimite = ValidadorImagen.procesar(Imagenes.pngGris(5_000, 5_000));
+	void elLimiteSonDieciseisMegapixeles_exactamenteEseTamanoPasa_unoMasNo() {
+		Imagen enElLimite = ValidadorImagen.procesar(Imagenes.pngGris(4_000, 4_000));
 		assertThat(enElLimite.tipoContenido()).isEqualTo("image/png");
 
-		assertThatThrownBy(() -> ValidadorImagen.procesar(Imagenes.pngGris(5_001, 5_000)))
+		assertThatThrownBy(() -> ValidadorImagen.procesar(Imagenes.pngGris(4_001, 4_000)))
 				.isInstanceOf(IllegalArgumentException.class)
 				.hasMessageContaining("megapíxeles");
 	}

@@ -170,6 +170,12 @@ abstract class IncidenciaSinTransaccionBase extends PostgresTestBase {
 				.andReturn().getResponse().getStatus();
 	}
 
+	int rechazar(Persona actor, long incidenciaId) throws Exception {
+		return mvc.perform(post("/api/incidencias/" + incidenciaId + "/estado").header("Authorization", actor.token())
+				.contentType(MediaType.APPLICATION_JSON).content("{\"estado\":\"RECHAZADA\",\"comentario\":\"no procede\"}"))
+				.andReturn().getResponse().getStatus();
+	}
+
 	/** Todas las tareas salen a la vez (barrera) en hilos distintos; devuelve sus resultados en el mismo orden. */
 	static <T> List<T> lanzarALaVez(List<Callable<T>> tareas) throws Exception {
 		CyclicBarrier salida = new CyclicBarrier(tareas.size());

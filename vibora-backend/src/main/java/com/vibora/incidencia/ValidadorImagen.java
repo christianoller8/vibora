@@ -25,7 +25,7 @@ import java.util.Iterator;
  * declara el cliente: el tipo sale de los primeros bytes (JPEG, PNG o WebP; cualquier otra cosa se rechaza).
  * <p>
  * Orden de las defensas: (1) tamano maximo del fichero; (2) tipo por bytes magicos; (3) dimensiones leidas de la
- * CABECERA, sin decodificar, con un tope de 25 megapixeles (una "bomba de descompresion" es un fichero minusculo que
+ * CABECERA, sin decodificar, con un tope de 16 megapixeles por defecto (configurable) (una "bomba de descompresion" es un fichero minusculo que
  * declara decenas de miles de pixeles por lado); (4) JPEG y PNG se decodifican y se VUELVEN A CODIFICAR con ImageIO,
  * lo que elimina EXIF, GPS, XMP, comentarios, perfiles y cualquier carga escondida antes de IEND/EOI (ficheros
  * "poligloto"). Los pixeles son lo unico que sobrevive.
@@ -41,9 +41,9 @@ import java.util.Iterator;
 public final class ValidadorImagen {
 
 	public static final int TAMANO_MAXIMO = 5 * 1024 * 1024;
-	public static final long PIXELES_MAXIMOS = 25_000_000L;
+	public static final long PIXELES_MAXIMOS = 16_000_000L;
 	public static final String FORMATO_NO_PERMITIDO = "Formato de imagen no permitido";
-	public static final String DEMASIADOS_PIXELES = "La imagen es demasiado grande (máximo 25 megapíxeles)";
+	public static final String DEMASIADOS_PIXELES = mensajePixeles(PIXELES_MAXIMOS);
 	public static final String DEMASIADO_PESADA = "La imagen supera el tamaño máximo de 5 MB";
 
 	private static final String JPEG = "image/jpeg";
@@ -59,7 +59,17 @@ public final class ValidadorImagen {
 	private ValidadorImagen() {
 	}
 
+	/** Con el tope de pixeles por defecto. */
 	public static Imagen procesar(byte[] original) {
+		return procesar(original, PIXELES_MAXIMOS);
+	}
+
+	/** El mensaje dice la resolucion maxima para que el cliente pueda reducir la imagen y reintentar. */
+	public static String mensajePixeles(long maximo) {
+		return "La imagen es demasiado grande (máximo %d megapíxeles); reduce su resolución".formatted(maximo / 1_000_000L);
+	}
+
+	public static Imagen procesar(byte[] original, long maximoPixeles) {
 		if (original.length > TAMANO_MAXIMO) {
 			throw new ArchivoDemasiadoGrandeException(DEMASIADO_PESADA);
 		}
@@ -67,7 +77,7 @@ public final class ValidadorImagen {
 		if (tipo == null) {
 			throw formatoNoPermitido();
 		}
-		return tipo.equals(WEBP) ? procesarWebp(original) : recodificar(original, tipo);
+		return tipo.equals(WEBP) ? procesarWebp(original, maximoPixeles) : recodificar(original, tipo, maximoPixeles);
 	}
 
 	// ---- deteccion por bytes magicos ----
@@ -97,8 +107,8 @@ public final class ValidadorImagen {
 
 	// ---- JPEG y PNG: cabecera -> limite de pixeles -> decodificar -> recodificar ----
 
-	private static Imagen recodificar(byte[] original, String tipo) {
-		BufferedImage imagen = decodificar(original, tipo);
+	private static Imagen recodificar(byte[] original, String tipo, long maximoPixeles) {
+		BufferedImage imagen = decodificar(original, tipo, maximoPixeles);
 		if (tipo.equals(JPEG)) {
 			imagen = orientar(imagen, orientacionExif(original));
 		}
@@ -109,7 +119,7 @@ public final class ValidadorImagen {
 		return new Imagen(tipo, bytes);
 	}
 
-	private static BufferedImage decodificar(byte[] original, String tipo) {
+	private static BufferedImage decodificar(byte[] original, String tipo, long maximoPixeles) {
 		// En memoria, nunca con la cache en disco que usa ImageIO por defecto para los flujos
 		try (ImageInputStream flujo = new MemoryCacheImageInputStream(new ByteArrayInputStream(original))) {
 			Iterator<ImageReader> lectores = ImageIO.getImageReaders(flujo);
@@ -127,15 +137,15 @@ public final class ValidadorImagen {
 				if (ancho <= 0 || alto <= 0) {
 					throw formatoNoPermitido();
 				}
-				if (ancho * alto > PIXELES_MAXIMOS) {
-					throw new IllegalArgumentException(DEMASIADOS_PIXELES);
+				if (ancho * alto > maximoPixeles) {
+					throw new IllegalArgumentException(mensajePixeles(maximoPixeles));
 				}
 				return lector.read(0);
 			} finally {
 				lector.dispose();
 			}
 		} catch (IOException | RuntimeException ex) {
-			if (ex instanceof IllegalArgumentException && DEMASIADOS_PIXELES.equals(ex.getMessage())
+			if (ex instanceof IllegalArgumentException && ex.getMessage() != null && ex.getMessage().startsWith("La imagen es demasiado grande")
 					|| ex instanceof IllegalArgumentException && FORMATO_NO_PERMITIDO.equals(ex.getMessage())) {
 				throw (RuntimeException) ex;
 			}
@@ -260,7 +270,7 @@ public final class ValidadorImagen {
 
 	// ---- WebP: validar y guardar tal cual ----
 
-	private static Imagen procesarWebp(byte[] b) {
+	private static Imagen procesarWebp(byte[] b, long maximoPixeles) {
 		long finRiff = (leer32(b, 4, false) & 0xFFFFFFFFL) + 8;
 		if (finRiff < 20 || finRiff > b.length) {
 			throw formatoNoPermitido(); // el RIFF declara mas bytes de los que hay (fichero cortado)
@@ -283,8 +293,8 @@ public final class ValidadorImagen {
 		if (ancho <= 0 || alto <= 0) {
 			throw formatoNoPermitido();
 		}
-		if (ancho * alto > PIXELES_MAXIMOS) {
-			throw new IllegalArgumentException(DEMASIADOS_PIXELES);
+		if (ancho * alto > maximoPixeles) {
+			throw new IllegalArgumentException(mensajePixeles(maximoPixeles));
 		}
 		// lo que haya tras el final del RIFF no es parte de la imagen
 		return new Imagen(WEBP, finRiff == b.length ? b : Arrays.copyOf(b, (int) finRiff));

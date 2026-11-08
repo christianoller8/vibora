@@ -1,9 +1,11 @@
 package com.vibora.almacen;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.file.AtomicMoveNotSupportedException;
@@ -30,15 +32,23 @@ public class AlmacenFicherosLocal implements AlmacenFicheros {
 	private static final Pattern CLAVE_VALIDA = Pattern.compile("[A-Za-z0-9][A-Za-z0-9._-]{0,79}");
 	private static final String PREFIJO_TEMPORAL = "tmp-";
 
+	private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(AlmacenFicherosLocal.class);
+
 	private final Path base;
+	private final int edadTmpHoras;
 
 	@Autowired
 	public AlmacenFicherosLocal(AlmacenProperties propiedades) {
-		this(Path.of(propiedades.directorio()));
+		this(Path.of(propiedades.directorio()), propiedades.limpiezaTmpHoras());
 	}
 
 	public AlmacenFicherosLocal(Path base) {
+		this(base, 1);
+	}
+
+	private AlmacenFicherosLocal(Path base, int edadTmpHoras) {
 		this.base = base.toAbsolutePath().normalize();
+		this.edadTmpHoras = edadTmpHoras;
 	}
 
 	@Override
@@ -86,6 +96,45 @@ public class AlmacenFicherosLocal implements AlmacenFicheros {
 	@Override
 	public boolean existe(String clave) {
 		return Files.isRegularFile(resolver(clave));
+	}
+
+	/**
+	 * Borra los temporales {@code tmp-*} (ficheros normales directamente en la carpeta base) cuya ultima modificacion es
+	 * anterior a {@code edadMinima}: los deja huerfanos una caida entre escribir y renombrar. Nunca toca una foto real:
+	 * las claves reales son UUID generados por el servidor (nunca empiezan por "tmp-") y aqui solo se miran ficheros
+	 * normales con ese prefijo. Devuelve cuantos borro. Publico para probarlo directamente.
+	 */
+	public int limpiarTemporales(Duration edadMinima) {
+		if (!Files.isDirectory(base)) {
+			return 0;
+		}
+		java.time.Instant limite = java.time.Instant.now().minus(edadMinima);
+		int borrados = 0;
+		try (java.util.stream.Stream<Path> ficheros = Files.list(base)) {
+			for (Path p : (Iterable<Path>) ficheros::iterator) {
+				String nombre = p.getFileName().toString();
+				try {
+					if (nombre.startsWith(PREFIJO_TEMPORAL) && Files.isRegularFile(p, java.nio.file.LinkOption.NOFOLLOW_LINKS)
+							&& Files.getLastModifiedTime(p).toInstant().isBefore(limite) && Files.deleteIfExists(p)) {
+						borrados++;
+					}
+				} catch (IOException ex) {
+					log.warn("No se pudo borrar el temporal huérfano {}", nombre, ex);
+				}
+			}
+		} catch (IOException ex) {
+			log.warn("No se pudo recorrer el almacén para limpiar temporales", ex);
+		}
+		return borrados;
+	}
+
+	/** Barrido periodico (vibora.almacen.limpieza-tmp-cron, cada hora por defecto) con la edad de limpieza-tmp-horas. */
+	@Scheduled(cron = "${vibora.almacen.limpieza-tmp-cron:0 15 * * * *}")
+	void limpiezaProgramada() {
+		int n = limpiarTemporales(Duration.ofHours(edadTmpHoras));
+		if (n > 0) {
+			log.info("Borrados {} temporales huérfanos del almacén", n);
+		}
 	}
 
 	private Path resolver(String clave) {

@@ -252,7 +252,7 @@ class IncidenciaFotoTests extends IncidenciaApiTestBase {
 
 		subir(jugador, incidencia, "bomba.png", "image/png", Imagenes.pngSoloCabecera(20_000, 20_000))
 				.andExpect(status().isBadRequest())
-				.andExpect(jsonPath("$.error").value("La imagen es demasiado grande (máximo 25 megapíxeles)"));
+				.andExpect(jsonPath("$.error").value("La imagen es demasiado grande (máximo 16 megapíxeles); reduce su resolución"));
 
 		assertThat(filas(incidencia)).isZero();
 	}
@@ -508,7 +508,7 @@ class IncidenciaFotoTests extends IncidenciaApiTestBase {
 
 	@ParameterizedTest
 	@EnumSource(value = EstadoIncidencia.class, names = { "CERRADA", "RECHAZADA" })
-	void enEstadoTerminal_noSePuedeBorrar_409(EstadoIncidencia terminal) throws Exception {
+	void enEstadoTerminal_soloLaAdministracionPuedeBorrar_elRestoRecibe409(EstadoIncidencia terminal) throws Exception {
 		long incidencia = incidenciaDe(jugador);
 		long foto = fotoSubida(jugador, incidencia);
 		if (terminal == EstadoIncidencia.RECHAZADA) {
@@ -520,10 +520,11 @@ class IncidenciaFotoTests extends IncidenciaApiTestBase {
 			estado(admin, incidencia, "CERRADA", null).andExpect(status().isOk());
 		}
 
-		borrar(jugador, incidencia, foto).andExpect(status().isConflict());
-		borrar(admin, incidencia, foto).andExpect(status().isConflict());
-
+		borrar(jugador, incidencia, foto).andExpect(status().isConflict()); // quien la subio, sigue bloqueado
 		assertThat(filas(incidencia)).isEqualTo(1);
+
+		borrar(admin, incidencia, foto).andExpect(status().isNoContent()); // la administracion del club si puede
+		assertThat(filas(incidencia)).isZero();
 	}
 
 	@Test

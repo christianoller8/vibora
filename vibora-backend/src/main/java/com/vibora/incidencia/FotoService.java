@@ -1,6 +1,12 @@
 package com.vibora.incidencia;
 
 import com.vibora.almacen.AlmacenFicheros;
+import com.vibora.almacen.AlmacenProperties;
+import com.vibora.common.exception.LimiteExcedidoException;
+import com.vibora.usuario.BloqueoUsuario;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
+import java.time.Duration;
 import com.vibora.almacen.FicheroNoEncontradoException;
 import com.vibora.auth.AutorizacionClub;
 import com.vibora.common.exception.ConflictoException;
@@ -21,6 +27,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.time.Clock;
+import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
@@ -48,6 +55,7 @@ public class FotoService {
 
 	static final int MAXIMO_FOTOS = 4;
 	private static final int LONGITUD_NOMBRE = 100;
+	private static final Duration VENTANA_CUOTA = Duration.ofHours(24);
 
 	private final IncidenciaRepository incidencias;
 	private final IncidenciaFotoRepository fotos;
@@ -55,19 +63,45 @@ public class FotoService {
 	private final AlmacenFicheros almacen;
 	private final HistorialIncidencia historial;
 	private final EntityManager em;
+	private final PlatformTransactionManager transacciones;
+	private final DecodificadorImagenes decodificador;
+	private final BloqueoUsuario bloqueoUsuario;
+	private final AlmacenProperties propiedades;
 	private final Clock reloj;
 
-	@Transactional
+	/**
+	 * Tres fases, y SOLO la tercera es una transaccion larga en el sentido de que bloquea filas:
+	 * <ol>
+	 * <li>transaccion corta de solo lectura: permisos y estado (404/403/409 antes de gastar nada); al terminar devuelve
+	 * la conexion al pool;</li>
+	 * <li>decodificar y recodificar la imagen SIN transaccion ni conexion (acotado por {@link DecodificadorImagenes});</li>
+	 * <li>transaccion corta de escritura: bloqueo del usuario (cuota diaria) y de la incidencia (tope de 4 fotos),
+	 * insercion de la fila, escritura del fichero y callback que lo borra si no se confirma. Orden de bloqueos: usuario
+	 * -> incidencia (asignar bloquea usuario y despues escribe la incidencia; nadie pide un usuario con la incidencia
+	 * ya bloqueada).</li>
+	 * </ol>
+	 */
 	public FotoResponse subir(Long incidenciaId, String nombreOriginal, byte[] contenido) {
-		Incidencia incidencia = cargar(incidenciaId);
-		Usuario actor = autorizacion.usuarioActual();
-		IncidenciaService.exigirVisible(actor, incidencia);
-		exigirNoTerminal(incidencia);
-		Imagen imagen = ValidadorImagen.procesar(contenido); // 400 / 413, y sin tener aun el bloqueo de la fila
+		TransactionTemplate lectura = new TransactionTemplate(transacciones);
+		lectura.setReadOnly(true);
+		lectura.executeWithoutResult(estado -> {
+			Incidencia incidencia = cargar(incidenciaId);
+			Usuario actor = autorizacion.usuarioActual();
+			IncidenciaService.exigirVisible(actor, incidencia);
+			exigirNoTerminal(incidencia);
+			exigirCuota(actor.getId()); // barata: quien ya esta pasado de cuota no gasta permisos de decodificacion
+		});
+		Imagen imagen = decodificador.procesar(contenido); // 400 / 413 / 503, sin transaccion ni conexion
+		return new TransactionTemplate(transacciones).execute(estado -> guardar(incidenciaId, nombreOriginal, imagen));
+	}
 
+	private FotoResponse guardar(Long incidenciaId, String nombreOriginal, Imagen imagen) {
+		Usuario actor = bloqueoUsuario.bloquear(autorizacion.usuarioActual()); // serializa la cuota de esta persona
+		Incidencia incidencia = cargar(incidenciaId);
 		bloquear(incidencia);
 		IncidenciaService.exigirVisible(actor, incidencia); // se vuelve a mirar con la fila ya fresca
 		exigirNoTerminal(incidencia);
+		exigirCuota(actor.getId()); // la comprobacion que manda: con el usuario bloqueado, sin carreras
 		if (fotos.countByIncidenciaId(incidenciaId) >= MAXIMO_FOTOS) {
 			throw new ConflictoException("Una incidencia admite como máximo %d fotos".formatted(MAXIMO_FOTOS));
 		}
@@ -121,7 +155,9 @@ public class FotoService {
 		if (!administrador && !foto.getSubidaPor().getId().equals(actor.getId())) {
 			throw new AccessDeniedException("Acceso denegado");
 		}
-		exigirNoTerminal(incidencia);
+		if (!administrador) { // en CERRADA/RECHAZADA solo la administracion del club puede quitar fotos
+			exigirNoTerminal(incidencia);
+		}
 
 		String clave = foto.getClaveAlmacen();
 		fotos.delete(foto);
@@ -143,6 +179,23 @@ public class FotoService {
 
 	private RecursoNoEncontradoException fotoNoEncontrada() {
 		return new RecursoNoEncontradoException("Foto no encontrada");
+	}
+
+	/**
+	 * Cuota sobre las fotos EXISTENTES subidas en las ultimas 24 h (recuento movil de filas: subir, borrar y volver a
+	 * subir libera cupo, es a proposito). 429 con Retry-After = segundos hasta que la mas antigua salga de la ventana.
+	 */
+	private void exigirCuota(Long usuarioId) {
+		Instant ahora = reloj.instant();
+		Instant desde = ahora.minus(VENTANA_CUOTA);
+		if (fotos.countBySubidaPorIdAndCreadaEnAfter(usuarioId, desde) < propiedades.cuotaDiariaPorUsuario()) {
+			return;
+		}
+		long segundos = fotos.primeraSubidaDesde(usuarioId, desde)
+				.map(primera -> (Duration.between(ahora, primera.plus(VENTANA_CUOTA)).toMillis() + 999) / 1000)
+				.orElse(VENTANA_CUOTA.toSeconds());
+		throw new LimiteExcedidoException("Has alcanzado el límite diario de fotos",
+				Math.max(1, Math.min(VENTANA_CUOTA.toSeconds(), segundos)));
 	}
 
 	private static void exigirNoTerminal(Incidencia incidencia) {
