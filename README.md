@@ -99,6 +99,91 @@ cuerpos de al menos 6 MB en `/api` (`client_max_body_size 6m;`; por defecto ngin
 El script de datos de ejemplo también sirve contra este stack (entra por nginx, que es `localhost`):
 `node scripts/seed-dev.mjs --base-url http://localhost:8088`.
 
+## Límites y protecciones
+
+Todos los valores son propiedades de `application.properties` (se pueden pisar con variables de entorno). Al superar un
+límite de frecuencia la API responde **429** con `{"error": "..."}` y la cabecera **`Retry-After`** (segundos).
+
+| Qué | Propiedad | Por defecto |
+|---|---|---|
+| Intentos de login por (IP, email) | `vibora.seguridad.login-max-por-email` / `login-ventana` | 5 cada 15 min (un login correcto reinicia el contador) |
+| Intentos de login por IP | `vibora.seguridad.login-max-por-ip` | 30 cada 15 min |
+| Registros por IP | `vibora.seguridad.registro-max-por-ip` / `registro-ventana` | 10 por hora |
+| Antelación máxima de una reserva | `vibora.reservas.horizonte-dias` | 60 días (día natural de Madrid) → 400 |
+| Reservas activas por jugador | `vibora.reservas.max-activas-por-usuario` | 10 (confirmadas que no han empezado) → 409; apuntarse a un partido abierto no cuenta |
+| Decodificaciones de imagen simultáneas | `vibora.almacen.decodificaciones-simultaneas` / `espera-decodificacion` | 2; si no hay hueco en 10 s → 503 |
+| Resolución máxima de una foto | `vibora.almacen.max-megapixeles` | 16 MP |
+| Fotos por persona | `vibora.almacen.cuota-diaria-por-usuario` | 40 en 24 h móviles → 429 (con `Retry-After` = segundos hasta que la foto más antigua salga de la ventana, máx. 86400) |
+| Temporales huérfanos del almacén | `vibora.almacen.limpieza-tmp-horas` / `limpieza-tmp-cron` | se borran los `tmp-*` de más de 1 h, cada hora |
+| Sesiones WebSocket por persona | `vibora.websocket.max-sesiones-por-usuario` | 10 (la siguiente recibe ERROR `Demasiadas conexiones`) |
+
+Además, nginx limita por IP `/api/auth/login` (10 peticiones/min, ráfaga 5) y `/api/auth/registro` (5/min, ráfaga 3) con un 429 en
+JSON, sin afectar al resto de `/api/`.
+
+La cuota de fotos es una **cuota sobre las fotos existentes en 24 h**: cuenta las filas subidas por la persona en las últimas
+24 horas, así que subir, borrar y volver a subir libera cupo (a propósito: no es un contador de subidas históricas). Se
+comprueba al principio de la petición (antes de decodificar nada) y otra vez, ya con el usuario bloqueado, al guardar.
+
+**Topología y limitación por IP (importante).** Los límites por IP (zonas `limit_req` de nginx y los contadores por IP
+del backend) solo distinguen clientes si nginx ve su IP real. Con el stack por defecto de Docker Desktop (NAT), en una wifi
+compartida o detrás de un balanceador/terminador TLS, **todos los clientes llegan con la misma IP** (la de la pasarela
+o el balanceador) y comparten un único cubo: un solo origen insistente puede agotar el límite y dejar fuera a los demás. Dos
+palancas, sin debilitar la protección por defecto:
+
+- **IP real en nginx** (opcional, desactivado por defecto): monta un fichero `*.conf` en `/etc/nginx/realip/` del contenedor
+  `frontend` con el rango del proxy de confianza (nunca `0.0.0.0/0` en producción, o cualquiera podría falsear su IP):
+
+  ```
+  set_real_ip_from 10.0.0.0/8;          # balanceador / terminador TLS de confianza
+  real_ip_header X-Forwarded-For;
+  real_ip_recursive on;
+  ```
+
+  (en compose: `volumes: ["./ops/realip.conf:/etc/nginx/realip/realip.conf:ro"]` en el servicio `frontend`). Con él, nginx
+  y el backend (que recibe la IP resultante en `X-Forwarded-For`) cuentan por cliente real. Sin el fichero no cambia nada.
+- **Subir los umbrales** en entornos donde la IP no se pueda distinguir (demos, red compartida): `vibora.seguridad.login-max-por-ip`,
+  `vibora.seguridad.registro-max-por-ip` (variables `VIBORA_SEGURIDAD_LOGIN_MAX_POR_IP`, ...) y, en nginx, los `rate=`/`burst=`
+  de las zonas `auth_login` y `auth_registro`. El límite por (IP, email) protege cada cuenta aunque se suban los de IP.
+- Las IPv6 se agrupan por /64 (una sola persona suele controlar un /64 entero) y `::ffff:a.b.c.d` cuenta como la IPv4.
+
+**El limitador de login/registro es en memoria y por instancia**: con más de una instancia del backend cada una cuenta
+por separado (el límite real se multiplica). Si algún día se despliega más de una, hay que moverlo a Redis (o similar).
+La IP del cliente es la del socket; detrás de nginx, Tomcat usa `X-Forwarded-For` solo si quien conecta es un proxy
+interno (`server.forward-headers-strategy=native`) y nginx la sobrescribe, así que un cliente no puede falsearla.
+
+## Roles de base de datos (producción)
+
+En desarrollo la aplicación usa el usuario `vibora` de la base (superusuario del contenedor): no se cambia. En producción
+conviene el menor privilegio. `ops/db-roles.sql` (no se ejecuta solo) crea tres roles: `vibora_owner` (dueño del esquema,
+para las migraciones de Flyway), `vibora_app` (la aplicación: `SELECT/INSERT/UPDATE/DELETE`, sin DDL, sin `TRUNCATE`, sin
+poder desactivar triggers; en `factura` solo `SELECT` e `INSERT`) y `vibora_ro` (solo lectura). Los privilegios por defecto
+hacen que las tablas que cree `vibora_owner` en migraciones futuras lleguen ya concedidas.
+
+1. Como superusuario (es idempotente): `psql -U postgres -d vibora -v ON_ERROR_STOP=1 -f ops/db-roles.sql`. En una **base
+   nueva** el script se ejecuta **dos veces**: una antes de la primera migración (crea roles y extensión) y **otra vez después
+   de la primera migración correcta**, porque `factura` y `flyway_schema_history` no existen en la primera pasada y sus
+   `REVOKE` no se pueden aplicar; hasta la segunda pasada la aplicación tendría `UPDATE`/`DELETE` sobre ellas. En una base
+   existente basta una vez. Repítelo también tras migraciones que creen tablas inmutables.
+2. Poner contraseñas (el script no guarda secretos): `ALTER ROLE vibora_app PASSWORD '...';` y lo mismo con `vibora_owner` y `vibora_ro`.
+3. Arrancar la aplicación con una conexión para cada cosa:
+
+   ```
+   SPRING_DATASOURCE_USERNAME=vibora_app    SPRING_DATASOURCE_PASSWORD=...   # la aplicación
+   SPRING_FLYWAY_USER=vibora_owner          SPRING_FLYWAY_PASSWORD=...       # las migraciones
+   ```
+
+Si una migración futura crea otra tabla inmutable, debe incluir su propio `REVOKE UPDATE, DELETE ... FROM vibora_app`.
+`RolesBdTest` ejecuta el script real contra un PostgreSQL de prueba y comprueba todo lo anterior.
+
+La migración V7 añade restricciones (emails únicos sin mayúsculas, horario del club, franjas de tarifa sin solape) y falla
+con un mensaje claro, sin aplicar nada, si la base ya contiene datos que las violan.
+
+### Copia de seguridad del entorno de desarrollo
+
+`node ops/backup-dev.mjs [--out <carpeta>]` (por defecto `./backups`) guarda `vibora-<fecha>.sql.gz` (pg_dump del contenedor
+`vibora-postgres`, solo lectura) y `vibora-uploads-<fecha>.tar.gz` (volumen de fotos, si existe). No sobrescribe nada; los
+comandos para restaurar están en la cabecera del script.
+
 ## Integración continua (definida, todavía sin ejecutar)
 
 `.github/workflows/ci.yml` está pensado para ejecutarse en cada push y pull request a `main`, pero **aún no se ha
