@@ -11,7 +11,10 @@ export type TipoNotificacion =
   | 'INCIDENCIA_ASIGNADA'
   | 'INCIDENCIA_ESTADO'
   | 'INCIDENCIA_COMENTARIO'
-  | 'FACTURA_RECTIFICATIVA';
+  | 'FACTURA_RECTIFICATIVA'
+  | 'INVITACION_RECIBIDA'
+  | 'INVITACION_ACEPTADA'
+  | 'INVITACION_RECHAZADA';
 
 export interface Notificacion {
   id: number;

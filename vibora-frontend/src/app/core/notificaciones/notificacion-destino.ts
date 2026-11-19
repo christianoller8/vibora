@@ -31,6 +31,12 @@ export function destinoNotificacion(tipo: TipoNotificacion): string {
     // Por ahora no hay pantalla de facturas: la de facturas tomará el relevo de este destino.
     case 'FACTURA_RECTIFICATIVA':
       return '/agenda';
+    case 'INVITACION_RECIBIDA':
+      return '/invitaciones';
+    // Lo ve el administrador del club; si quien lo abre no lo es, el guard de /club lo devuelve a la agenda.
+    case 'INVITACION_ACEPTADA':
+    case 'INVITACION_RECHAZADA':
+      return '/club';
     default: {
       const _exhaustivo: never = tipo;
       void _exhaustivo;

@@ -20,6 +20,9 @@ const TODOS_LOS_TIPOS: TipoNotificacion[] = [
   'FACTURA_RECTIFICATIVA',
   ...TIPOS_PERSONAL,
   ...TIPOS_INCIDENCIA,
+  'INVITACION_RECIBIDA',
+  'INVITACION_ACEPTADA',
+  'INVITACION_RECHAZADA',
 ];
 
 describe('destinoNotificacion', () => {
@@ -34,9 +37,20 @@ describe('destinoNotificacion', () => {
     expect(destinoNotificacion(tipo)).toBe(ruta);
   });
 
-  it('cubre los 13 tipos conocidos', () => {
-    expect(new Set(TODOS_LOS_TIPOS).size).toBe(13);
+  it('cubre los 16 tipos conocidos', () => {
+    expect(new Set(TODOS_LOS_TIPOS).size).toBe(16);
   });
+
+  it('INVITACION_RECIBIDA lleva a la pantalla del invitado', () => {
+    expect(destinoNotificacion('INVITACION_RECIBIDA')).toBe('/invitaciones');
+  });
+
+  it.each<TipoNotificacion>(['INVITACION_ACEPTADA', 'INVITACION_RECHAZADA'])(
+    '%s lleva al área de administración del club',
+    (tipo) => {
+      expect(destinoNotificacion(tipo)).toBe('/club');
+    },
+  );
 
   it('FACTURA_RECTIFICATIVA lleva a /agenda hasta que exista la pantalla de facturas', () => {
     expect(destinoNotificacion('FACTURA_RECTIFICATIVA')).toBe('/agenda');

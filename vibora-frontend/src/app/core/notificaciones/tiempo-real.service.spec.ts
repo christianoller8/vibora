@@ -131,6 +131,9 @@ describe('TiempoRealService', () => {
       ['INCIDENCIA_ESTADO', '/incidencias'],
       ['INCIDENCIA_COMENTARIO', '/incidencias'],
       ['FACTURA_RECTIFICATIVA', '/agenda'],
+      ['INVITACION_RECIBIDA', '/invitaciones'],
+      ['INVITACION_ACEPTADA', '/club'],
+      ['INVITACION_RECHAZADA', '/club'],
     ])('un push %s se entrega y "Ver" navega a %s y marca leída', async (tipo, destino) => {
       // como el Router real: una URL que no es string revienta
       router.navigateByUrl.mockImplementation((url: unknown) => {
