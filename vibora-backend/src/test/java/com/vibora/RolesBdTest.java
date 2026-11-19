@@ -73,7 +73,7 @@ class RolesBdTest extends PostgresTestBase {
 					+ "and not rolsuper and not rolcreatedb and not rolcreaterole and not rolbypassrls and rolcanlogin"))
 					.isEqualTo("3");
 			assertThat(uno(s, "select count(*) from pg_tables where schemaname = 'public' and tablename <> 'flyway_schema_history' "
-					+ "and tableowner = 'vibora_owner'")).isEqualTo("15");
+					+ "and tableowner = 'vibora_owner'")).isEqualTo("16"); // 15 + invitacion_personal (V8)
 		}
 	}
 

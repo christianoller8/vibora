@@ -64,7 +64,8 @@ class MigracionV7Tests extends PostgresTestBase {
 	}
 
 	private void migrarV7() {
-		Flyway.configure().dataSource(url, usuario, password).load().migrate();
+		// solo hasta V7: las versiones posteriores tienen sus propios tests de migracion
+		Flyway.configure().dataSource(url, usuario, password).target("7").load().migrate();
 	}
 
 	// ---- aplicacion limpia ----
