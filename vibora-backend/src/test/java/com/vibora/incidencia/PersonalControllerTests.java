@@ -19,13 +19,11 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/** Gestion del personal del club (/api/clubes/{id}/personal). Comparte base con los tests de incidencias. */
+/**
+ * Gestion del personal del club (/api/clubes/{id}/personal): listar y quitar. El alta directa (POST) ya no existe: se
+ * entra por invitacion aceptada (ver InvitacionPersonalTests). Aqui tambien el abandono voluntario (POST /api/personal/salir).
+ */
 class PersonalControllerTests extends IncidenciaApiTestBase {
-
-	ResultActions anadir(Persona actor, long clubId, String email, String rol) throws Exception {
-		return mvc.perform(post("/api/clubes/" + clubId + "/personal").header("Authorization", actor.token())
-				.contentType(MediaType.APPLICATION_JSON).content(json("email", texto(email), "rol", texto(rol))));
-	}
 
 	ResultActions listarPersonal(Persona actor, long clubId) throws Exception {
 		return mvc.perform(get("/api/clubes/" + clubId + "/personal").header("Authorization", actor.token()));
@@ -34,6 +32,10 @@ class PersonalControllerTests extends IncidenciaApiTestBase {
 	ResultActions quitar(Persona actor, long clubId, long usuarioId) throws Exception {
 		return mvc.perform(delete("/api/clubes/" + clubId + "/personal/" + usuarioId)
 				.header("Authorization", actor.token()));
+	}
+
+	ResultActions salir(Persona p) throws Exception {
+		return mvc.perform(post("/api/personal/salir").header("Authorization", p.token()));
 	}
 
 	Usuario enBd(Persona p) {
@@ -48,101 +50,30 @@ class PersonalControllerTests extends IncidenciaApiTestBase {
 		return json.replaceAll(".*\"rol\":\"([A-Z_]+)\".*", "$1");
 	}
 
-	// ---- anadir ----
+	// ---- el alta directa ya no existe ----
 
 	@Test
-	void anadir_monitor_201_actualizaRolYClub_yAvisaALaPersona() throws Exception {
-		anadir(admin, club.getId(), "otro@vibora.com", "MONITOR")
-				.andExpect(status().isCreated())
-				.andExpect(jsonPath("$.usuarioId").value(otro.id()))
-				.andExpect(jsonPath("$.nombre").value("Olga"))
-				.andExpect(jsonPath("$.apellidos").value("Otra"))
-				.andExpect(jsonPath("$.email").value("otro@vibora.com"))
-				.andExpect(jsonPath("$.rol").value("MONITOR"));
+	void elAltaDirectaPOST_yaNoExiste_ynoConvierteANadieEnPersonal() throws Exception {
+		int estado = mvc.perform(post("/api/clubes/" + club.getId() + "/personal").header("Authorization", admin.token())
+				.contentType(MediaType.APPLICATION_JSON).content(json("email", texto("otro@vibora.com"), "rol", texto("MONITOR"))))
+				.andReturn().getResponse().getStatus();
 
-		Usuario u = enBd(otro);
-		assertThat(u.getRol()).isEqualTo(Rol.MONITOR);
-		assertThat(u.getClub().getId()).isEqualTo(club.getId());
-		assertThat(notifsDe(otro, TipoNotificacion.PERSONAL_ANADIDO)).singleElement()
-				.satisfies(n -> assertThat(n.getMensaje()).contains("Club A").contains("monitor"));
-		assertThat(notifsDe(admin, null)).isEmpty(); // el actor no se avisa a si mismo
-	}
-
-	@Test
-	void anadir_mantenimiento_201() throws Exception {
-		anadir(admin, club.getId(), "otro@vibora.com", "MANTENIMIENTO")
-				.andExpect(status().isCreated())
-				.andExpect(jsonPath("$.rol").value("MANTENIMIENTO"));
-
-		assertThat(enBd(otro).getRol()).isEqualTo(Rol.MANTENIMIENTO);
-	}
-
-	@Test
-	void anadir_elEmailSeNormalizaComoEnElRegistro() throws Exception {
-		anadir(admin, club.getId(), "OTRO@Vibora.COM", "MONITOR")
-				.andExpect(status().isCreated())
-				.andExpect(jsonPath("$.email").value("otro@vibora.com"));
-	}
-
-	@Test
-	void anadir_emailInexistente404() throws Exception {
-		anadir(admin, club.getId(), "nadie@vibora.com", "MONITOR").andExpect(status().isNotFound());
-	}
-
-	@Test
-	void anadir_quienYaPerteneceAUnClub409_seaMismoOOtroClub_ySeaCualSeaSuRol() throws Exception {
-		anadir(admin, club.getId(), "mant1@vibora.com", "MANTENIMIENTO").andExpect(status().isConflict()); // este club, mismo rol
-		anadir(admin, club.getId(), "monitor@vibora.com", "MANTENIMIENTO").andExpect(status().isConflict()); // este club
-		anadir(admin, club.getId(), "mantb@vibora.com", "MANTENIMIENTO").andExpect(status().isConflict()); // otro club
-		anadir(admin, club.getId(), "adminb@vibora.com", "MONITOR").andExpect(status().isConflict()); // admin de otro club
-		anadir(admin, club.getId(), "admin@vibora.com", "MONITOR").andExpect(status().isConflict()); // uno mismo
-
-		assertThat(enBd(mantB).getClub().getId()).isEqualTo(clubB.getId());
-		assertThat(enBd(mantB).getRol()).isEqualTo(Rol.MANTENIMIENTO);
-		assertThat(enBd(admin).getRol()).isEqualTo(Rol.ADMIN_CLUB);
-	}
-
-	@Test
-	void anadir_dosVecesLaMismaPersona_laSegunda409() throws Exception {
-		anadir(admin, club.getId(), "otro@vibora.com", "MONITOR").andExpect(status().isCreated());
-		anadir(admin, club.getId(), "otro@vibora.com", "MONITOR").andExpect(status().isConflict());
-		assertThat(notifsDe(otro, TipoNotificacion.PERSONAL_ANADIDO)).hasSize(1);
-	}
-
-	@Test
-	void anadir_rolNoPermitidoOAusente_o_emailInvalido_400() throws Exception {
-		anadir(admin, club.getId(), "otro@vibora.com", "ADMIN_CLUB").andExpect(status().isBadRequest());
-		anadir(admin, club.getId(), "otro@vibora.com", "JUGADOR").andExpect(status().isBadRequest());
-		anadir(admin, club.getId(), "otro@vibora.com", "JEFE").andExpect(status().isBadRequest());
-		anadir(admin, club.getId(), "otro@vibora.com", null).andExpect(status().isBadRequest());
-		anadir(admin, club.getId(), "no-es-un-email", "MONITOR").andExpect(status().isBadRequest());
-		anadir(admin, club.getId(), null, "MONITOR").andExpect(status().isBadRequest());
-
+		assertThat(estado).as("la ruta sigue existiendo (GET y DELETE), solo ese metodo no esta permitido").isEqualTo(405);
 		assertThat(enBd(otro).getRol()).isEqualTo(Rol.JUGADOR);
+		assertThat(enBd(otro).getClub()).isNull();
 	}
 
 	@Test
-	void anadir_soloElAdministradorDeEseClub_403_401_404() throws Exception {
-		for (Persona p : List.of(monitor, mant1, jugador, otro, adminB)) {
-			anadir(p, club.getId(), "otro@vibora.com", "MONITOR").andExpect(status().isForbidden());
-		}
-		mvc.perform(post("/api/clubes/" + club.getId() + "/personal").contentType(MediaType.APPLICATION_JSON)
-				.content("{\"email\":\"otro@vibora.com\",\"rol\":\"MONITOR\"}")).andExpect(status().isUnauthorized());
-		anadir(admin, 999_999L, "otro@vibora.com", "MONITOR").andExpect(status().isNotFound());
-		assertThat(enBd(otro).getRol()).isEqualTo(Rol.JUGADOR);
-	}
-
-	@Test
-	void anadir_elTokenAnteriorSigueDiciendoJugador_perolaAutorizacionSeLeeDeLaBd() throws Exception {
+	void entrarPorInvitacion_elTokenAnteriorSigueDiciendoJugador_perolaAutorizacionSeLeeDeLaBd() throws Exception {
 		assertThat(rolDelToken(otro.token())).isEqualTo("JUGADOR");
-		anadir(admin, club.getId(), "otro@vibora.com", "MONITOR").andExpect(status().isCreated());
+		Persona nueva = anadirPersonal(admin, club, otro, "MONITOR");
 
 		// el JWT ya emitido no cambia (como al crear un club): hasta volver a iniciar sesion sigue diciendo JUGADOR...
 		assertThat(rolDelToken(otro.token())).isEqualTo("JUGADOR");
 		// ...pero los permisos se deciden con la BD: ya puede reportar como personal aunque nunca haya jugado
 		reportar(otro, club, "Foco fundido", "ILUMINACION", null).andExpect(status().isCreated());
-		// y un token nuevo ya trae el rol nuevo
-		assertThat(rolDelToken(bearer("otro@vibora.com"))).isEqualTo("MONITOR");
+		// y el token nuevo ya trae el rol nuevo
+		assertThat(rolDelToken(nueva.token())).isEqualTo("MONITOR");
 	}
 
 	// ---- listar ----
@@ -170,7 +101,7 @@ class PersonalControllerTests extends IncidenciaApiTestBase {
 		listarPersonal(admin, 999_999L).andExpect(status().isNotFound());
 	}
 
-	// ---- quitar ----
+	// ---- quitar (por el administrador) ----
 
 	@Test
 	void quitar_monitor_204_vuelveAJugadorSinClub_yAvisaALaPersona() throws Exception {
@@ -263,12 +194,66 @@ class PersonalControllerTests extends IncidenciaApiTestBase {
 	}
 
 	@Test
-	void quitar_laPersonaPuedeUnirseDespuesAOtroClub() throws Exception {
+	void quitar_laPersonaPuedeUnirseDespuesAOtroClub_porInvitacion() throws Exception {
 		quitar(admin, club.getId(), monitor.id()).andExpect(status().isNoContent());
 
-		anadir(adminB, clubB.getId(), "monitor@vibora.com", "MANTENIMIENTO").andExpect(status().isCreated());
+		anadirPersonal(adminB, clubB, monitor, "MANTENIMIENTO");
 
 		assertThat(enBd(monitor).getClub().getId()).isEqualTo(clubB.getId());
 		assertThat(enBd(monitor).getRol()).isEqualTo(Rol.MANTENIMIENTO);
+	}
+
+	// ---- salir (abandono voluntario del personal) ----
+
+	@Test
+	void salir_monitor_204_vuelveAJugadorSinClub_yAvisaALosAdministradores() throws Exception {
+		salir(monitor).andExpect(status().isNoContent());
+
+		Usuario u = enBd(monitor);
+		assertThat(u.getRol()).isEqualTo(Rol.JUGADOR);
+		assertThat(u.getClub()).isNull();
+		assertThat(notifsDe(admin, TipoNotificacion.PERSONAL_QUITADO)).singleElement()
+				.satisfies(n -> assertThat(n.getMensaje()).contains("Moni Tor").contains("Club A"));
+		listarPersonal(admin, club.getId()).andExpect(jsonPath("$.length()").value(3));
+	}
+
+	@Test
+	void salir_mantenimiento_desasignaSusIncidenciasActivas_igualQueLaRetiradaDelAdministrador() throws Exception {
+		long asignada = incidenciaEn(EstadoIncidencia.ASIGNADA);
+		long enCurso = incidenciaEn(EstadoIncidencia.EN_CURSO);
+		long resuelta = incidenciaEn(EstadoIncidencia.RESUELTA);
+
+		salir(mant1).andExpect(status().isNoContent());
+
+		for (long id : new long[] { asignada, enCurso }) {
+			Incidencia i = incidencia(id);
+			assertThat(i.getEstado()).isEqualTo(EstadoIncidencia.ABIERTA);
+			assertThat(i.getAsignadaA()).isNull();
+			List<IncidenciaEvento> h = historial(id);
+			assertThat(h.get(h.size() - 1).getTipo()).isEqualTo(TipoEventoIncidencia.ASIGNADA);
+			assertThat(h.get(h.size() - 1).getEstadoNuevo()).isEqualTo("ABIERTA");
+			assertThat(h.get(h.size() - 1).getUsuario().getId()).isEqualTo(mant1.id()); // lo hizo quien se marcha
+		}
+		assertThat(incidencia(resuelta).getEstado()).isEqualTo(EstadoIncidencia.RESUELTA);
+		assertThat(notifsDe(admin, TipoNotificacion.INCIDENCIA_ESTADO).get(notifsDe(admin, TipoNotificacion.INCIDENCIA_ESTADO).size() - 1)
+				.getMensaje()).contains("2 incidencias").contains("Mario");
+		assertThat(enBd(mant1).getRol()).isEqualTo(Rol.JUGADOR);
+	}
+
+	@Test
+	void salir_unAdministrador409_yUnJugador409_yNadaCambia() throws Exception {
+		salir(admin).andExpect(status().isConflict()).andExpect(jsonPath("$.error").value("El administrador no puede abandonar el club"));
+		salir(jugador).andExpect(status().isConflict());
+		salir(otro).andExpect(status().isConflict());
+
+		assertThat(enBd(admin).getRol()).isEqualTo(Rol.ADMIN_CLUB);
+		assertThat(enBd(admin).getClub()).isNotNull();
+	}
+
+	@Test
+	void salir_sinTokenEs401_yElTokenViejoDelPersonalQueYaSalioDa409() throws Exception {
+		mvc.perform(post("/api/personal/salir")).andExpect(status().isUnauthorized());
+		salir(monitor).andExpect(status().isNoContent());
+		salir(monitor).andExpect(status().isConflict()); // el token sigue diciendo MONITOR, la BD dice JUGADOR
 	}
 }

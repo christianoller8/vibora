@@ -11,6 +11,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 
@@ -36,7 +38,7 @@ public class NotificacionService {
 		Notificacion n = new Notificacion();
 		n.setUsuario(usuario);
 		n.setTipo(tipo);
-		n.setMensaje(mensaje.length() > LONGITUD_MAXIMA ? mensaje.substring(0, LONGITUD_MAXIMA - 3) + "..." : mensaje);
+		n.setMensaje(recortar(mensaje));
 		n.setReserva(reserva);
 		// microsegundos, la precision de la BD: lo empujado por WebSocket coincide exactamente con lo guardado
 		n.setCreadaEn(reloj.instant().truncatedTo(ChronoUnit.MICROS));
@@ -44,6 +46,24 @@ public class NotificacionService {
 		eventos.publishEvent(new NotificacionCreada(guardada.getId(), usuario.getId(), usuario.getEmail(), tipo,
 				guardada.getMensaje(), reserva == null ? null : reserva.getId(), guardada.getCreadaEn()));
 		return guardada;
+	}
+
+	/**
+	 * Como {@link #notificar} pero sin repetir: si el usuario ya tiene SIN LEER un aviso del mismo tipo y texto creado
+	 * dentro de la {@code ventana}, no crea otro (devuelve {@code null}). Frena el spam de bucles invitar-cancelar-invitar.
+	 */
+	@Transactional
+	public Notificacion notificarSinRepetir(Usuario usuario, TipoNotificacion tipo, String mensaje, Duration ventana) {
+		Instant desde = reloj.instant().truncatedTo(ChronoUnit.MICROS).minus(ventana);
+		if (notificaciones.existsByUsuarioIdAndTipoAndMensajeAndLeidaFalseAndCreadaEnAfter(usuario.getId(), tipo,
+				recortar(mensaje), desde)) {
+			return null;
+		}
+		return notificar(usuario, tipo, mensaje, null);
+	}
+
+	private static String recortar(String mensaje) {
+		return mensaje.length() > LONGITUD_MAXIMA ? mensaje.substring(0, LONGITUD_MAXIMA - 3) + "..." : mensaje;
 	}
 
 	@Transactional(readOnly = true)

@@ -121,6 +121,8 @@ límite de frecuencia la API responde **429** con `{"error": "..."}` y la cabece
 | Fotos por persona | `vibora.almacen.cuota-diaria-por-usuario` | 40 en 24 h móviles → 429 (con `Retry-After` = segundos hasta que la foto más antigua salga de la ventana, máx. 86400) |
 | Temporales huérfanos del almacén | `vibora.almacen.limpieza-tmp-horas` / `limpieza-tmp-cron` | se borran los `tmp-*` de más de 1 h, cada hora |
 | Sesiones WebSocket por persona | `vibora.websocket.max-sesiones-por-usuario` | 10 (la siguiente recibe ERROR `Demasiadas conexiones`) |
+| Invitaciones del personal pendientes por club | `vibora.personal.max-pendientes-por-club` | 50 → 429 (sin `Retry-After`) |
+| Invitaciones creadas por club en 24 h | `vibora.personal.max-invitaciones-por-club-24h` | 30 → 429 (sin `Retry-After`) |
 
 Además, nginx limita por IP `/api/auth/login` (10 peticiones/min, ráfaga 5) y `/api/auth/registro` (5/min, ráfaga 3) con un 429 en
 JSON, sin afectar al resto de `/api/`.
@@ -155,6 +157,43 @@ palancas, sin debilitar la protección por defecto:
 por separado (el límite real se multiplica). Si algún día se despliega más de una, hay que moverlo a Redis (o similar).
 La IP del cliente es la del socket; detrás de nginx, Tomcat usa `X-Forwarded-For` solo si quien conecta es un proxy
 interno (`server.forward-headers-strategy=native`) y nginx la sobrescribe, así que un cliente no puede falsearla.
+
+## Invitaciones del personal
+
+Nadie pasa a ser monitor o personal de mantenimiento sin aceptarlo. El administrador del club **invita a un correo** y la
+persona decide:
+
+1. `POST /api/clubes/{clubId}/invitaciones` `{email, rol}` (`MONITOR` o `MANTENIMIENTO`; solo el administrador del club).
+   Responde **siempre `202`** con `{"mensaje":"Si el correo es válido, la persona recibirá la invitación."}` tanto si el
+   correo está registrado y libre, ya está en otro club, ya es de este club o no está registrado: **no hay enumeración de
+   cuentas** (nada de 404/409 que delate quién existe). Los únicos errores visibles son 400 (datos), 403/404 (permisos/club)
+   y 429 (topes). Invitar dos veces al mismo correo mientras la primera está viva no crea nada nuevo (idempotente). Si el
+   correo es de un usuario registrado recibe un aviso `INVITACION_RECIBIDA`; si se registra después, recibe un aviso con las
+   invitaciones que ya tenía pendientes. Ese aviso no se repite mientras el anterior siga sin leer (24 h), para que
+   invitar-cancelar-invitar no llene la bandeja; el nombre del club se recorta a 60 puntos de código.
+
+   La respuesta es idéntica en estado y cuerpo, pero el tiempo de respuesta de la rama "correo registrado" puede diferir en
+   unos milisegundos (crear fila y aviso): es un oráculo débil, mitigado por los topes diarios por club.
+2. `GET /api/clubes/{clubId}/invitaciones?estado=` lista las del club (más recientes primero, máx. 100) y
+   `DELETE /api/clubes/{clubId}/invitaciones/{id}` cancela una pendiente (204; ya cancelada: 204; otro estado: 409).
+3. La persona invitada ve `GET /api/invitaciones/mias` y decide con `POST /api/invitaciones/{id}/aceptar`
+   (`{requiereNuevoLogin: true, clubNombre, rol}`: su token sigue diciendo `JUGADOR`, debe iniciar sesión otra vez) o
+   `POST /api/invitaciones/{id}/rechazar` (204). Solo el destinatario (identificado por el correo de su fila en la BD, no
+   por el token) puede hacerlo; cualquier otro recibe 404. Al aceptar se avisa a los administradores del club; las
+   invitaciones de **otros** clubes no se tocan (cancelarlas delataría al otro administrador que el correo está registrado y
+   se unió a otro club): siguen pendientes hasta caducar y aceptarlas después da 409 "Ya perteneces a un club". Mientras la
+   persona ya pertenece a un club, `mias` devuelve una lista vacía.
+4. El personal puede **abandonar el club** con `POST /api/personal/salir` (204; el administrador no puede: 409). Tiene el
+   mismo efecto que la retirada por el administrador (`DELETE /api/clubes/{clubId}/personal/{usuarioId}`, que sigue igual):
+   vuelve a `JUGADOR` sin club y sus incidencias activas quedan abiertas y sin asignar.
+
+Una invitación **caduca a los 14 días** (`vibora.personal.invitacion-dias`); un barrido diario (03:45, Madrid;
+`vibora.personal.caducidad-cron`) marca como `CADUCADA` las vencidas, y también se hace al vuelo al aceptar, listar o volver a
+invitar. Topes por club (429): 50 pendientes (`vibora.personal.max-pendientes-por-club`) y 30 creadas en 24 h
+(`vibora.personal.max-invitaciones-por-club-24h`).
+
+**Se eliminó `POST /api/clubes/{clubId}/personal`**: convertía en personal, sin consentimiento y sin posibilidad de deshacerlo, a
+cualquier usuario sin club, y sus 404/409 revelaban qué correos estaban registrados. `GET` y `DELETE` de esa ruta no cambian.
 
 ## Roles de base de datos (producción)
 

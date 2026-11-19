@@ -21,6 +21,10 @@ public interface NotificacionRepository extends JpaRepository<Notificacion, Long
 
 	Optional<Notificacion> findByIdAndUsuarioId(Long id, Long usuarioId);
 
+	/** Hay una NO leida del mismo tipo y texto creada despues de {@code desde} (estrictamente). */
+	boolean existsByUsuarioIdAndTipoAndMensajeAndLeidaFalseAndCreadaEnAfter(Long usuarioId, TipoNotificacion tipo,
+			String mensaje, Instant desde);
+
 	/** Marca de golpe todas las no leidas del usuario; devuelve cuantas cambiaron. */
 	@Modifying(flushAutomatically = true)
 	@Query("update Notificacion n set n.leida = true where n.usuario.id = :usuarioId and n.leida = false")

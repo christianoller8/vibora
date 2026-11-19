@@ -7,7 +7,6 @@ import com.vibora.common.exception.ConflictoException;
 import com.vibora.common.exception.RecursoNoEncontradoException;
 import com.vibora.incidencia.IncidenciaService;
 import com.vibora.notificacion.NotificacionService;
-import com.vibora.notificacion.TextosAviso;
 import com.vibora.notificacion.TipoNotificacion;
 import com.vibora.usuario.BloqueoUsuario;
 import com.vibora.usuario.Rol;
@@ -18,26 +17,23 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Locale;
-import java.util.Set;
 
 /**
- * Alta y baja del personal de un club (solo su administrador). Orden de comprobaciones: club (404) -> administrador
- * del club (403) -> datos (400) -> persona (404) -> estado de la persona (409).
+ * Baja del personal de un club, por su administrador o voluntaria ({@link #salir()}). El alta es por invitacion
+ * aceptada ({@link InvitacionService}). Orden de comprobaciones: club (404) -> administrador del club (403) -> persona
+ * (404) -> estado de la persona (409).
  * <p>
- * Alta y baja bloquean la fila de la persona (SELECT ... FOR UPDATE) antes de decidir: dos altas simultaneas de la
- * misma persona, o una asignacion de incidencia mientras se la retira, se serializan y la segunda ve el resultado de
- * la primera.
+ * La baja bloquea la fila de la persona (SELECT ... FOR UPDATE) antes de decidir: una asignacion de incidencia
+ * mientras se la retira se serializa y la segunda ve el resultado de la primera. Ambas bajas comparten
+ * {@link #retirar}, asi que se comportan igual.
  * <p>
- * OJO con el token: el rol viaja en el JWT. La persona anadida o retirada conserva su token anterior (JUGADOR, o
- * MONITOR/MANTENIMIENTO) hasta que expire o vuelva a iniciar sesion, igual que al crear un club. Eso no abre ni
- * deja abierto nada: los permisos de club se leen SIEMPRE de la BD, nunca del token.
+ * OJO con el token: el rol viaja en el JWT. La persona retirada conserva su token anterior (MONITOR/MANTENIMIENTO)
+ * hasta que expire o vuelva a iniciar sesion. Eso no deja abierto nada: los permisos de club se leen SIEMPRE de la
+ * BD, nunca del token.
  */
 @Service
 @RequiredArgsConstructor
 public class PersonalService {
-
-	private static final Set<Rol> ROLES_ALTA = Set.of(Rol.MONITOR, Rol.MANTENIMIENTO);
 
 	private final UsuarioRepository usuarios;
 	private final ClubRepository clubs;
@@ -55,30 +51,6 @@ public class PersonalService {
 				.map(PersonalResponse::de).toList();
 	}
 
-	@Transactional
-	public PersonalResponse anadir(Long clubId, PersonalRequest peticion) {
-		Club club = buscarClub(clubId);
-		autorizacion.exigirAdminDe(clubId);
-		if (!ROLES_ALTA.contains(peticion.rol())) {
-			throw new IllegalArgumentException("El rol debe ser MONITOR o MANTENIMIENTO");
-		}
-		String email = peticion.email().trim().toLowerCase(Locale.ROOT); // igual que el registro
-		Usuario persona = usuarios.findByEmail(email).filter(Usuario::isActivo)
-				.orElseThrow(() -> new RecursoNoEncontradoException("No existe ningún usuario con ese email"));
-		bloqueo.bloquear(persona);
-		// cualquier pertenencia a un club (este u otro, con cualquier rol) lo impide; solo un JUGADOR libre puede entrar
-		if (persona.getRol() != Rol.JUGADOR || persona.getClub() != null) {
-			throw new ConflictoException("Ese usuario ya pertenece a un club");
-		}
-		persona.setRol(peticion.rol());
-		persona.setClub(club);
-		usuarios.saveAndFlush(persona);
-		notificaciones.notificar(persona, TipoNotificacion.PERSONAL_ANADIDO,
-				"Ahora formas parte del personal de %s como %s. Vuelve a iniciar sesión para que tu sesión lo refleje."
-						.formatted(club.getNombre(), TextosAviso.describir(peticion.rol())), null);
-		return PersonalResponse.de(persona);
-	}
-
 	/** 404 si no es personal de ESTE club; 409 si es administrador (los administradores no se quitan por aqui). */
 	@Transactional
 	public void quitar(Long clubId, Long usuarioId) {
@@ -93,13 +65,41 @@ public class PersonalService {
 		if (persona.getRol() == Rol.ADMIN_CLUB) {
 			throw new ConflictoException("No se puede quitar a un administrador del club");
 		}
+		retirar(persona, admin, clubId);
+		notificaciones.notificar(persona, TipoNotificacion.PERSONAL_QUITADO,
+				"Has dejado de formar parte del personal de %s".formatted(club.getNombre()), null);
+	}
+
+	/**
+	 * El personal (monitor o mantenimiento) abandona su club. Mismo efecto que la retirada del administrador; avisa a los
+	 * administradores. 409 para el administrador y para quien no es personal. Se decide con la fila ya bloqueada y releida:
+	 * un token viejo no cuenta.
+	 */
+	@Transactional
+	public void salir() {
+		Usuario yo = autorizacion.usuarioActual();
+		bloqueo.bloquear(yo);
+		if (yo.getRol() == Rol.ADMIN_CLUB) {
+			throw new ConflictoException("El administrador no puede abandonar el club");
+		}
+		if (yo.getRol() == Rol.JUGADOR || yo.getClub() == null) {
+			throw new ConflictoException("No perteneces al personal de ningún club");
+		}
+		Club club = yo.getClub();
+		retirar(yo, yo, club.getId());
+		String aviso = "%s ha dejado el personal de %s".formatted(yo.nombreCompleto(), club.getNombre());
+		for (Usuario admin : usuarios.findByClubIdAndRol(club.getId(), Rol.ADMIN_CLUB)) {
+			notificaciones.notificar(admin, TipoNotificacion.PERSONAL_QUITADO, aviso, null);
+		}
+	}
+
+	/** Deja a la persona como JUGADOR sin club (con su fila ya bloqueada). {@code actor} firma lo que pase en las incidencias. */
+	private void retirar(Usuario persona, Usuario actor, Long clubId) {
 		// antes de cambiar el rol: la BD exige responsable en las incidencias asignadas o en curso
-		incidencias.desasignarActivasDe(persona, admin, clubId);
+		incidencias.desasignarActivasDe(persona, actor, clubId);
 		persona.setRol(Rol.JUGADOR);
 		persona.setClub(null);
 		usuarios.saveAndFlush(persona);
-		notificaciones.notificar(persona, TipoNotificacion.PERSONAL_QUITADO,
-				"Has dejado de formar parte del personal de %s".formatted(club.getNombre()), null);
 	}
 
 	private Club buscarClub(Long clubId) {

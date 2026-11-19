@@ -160,25 +160,5 @@ class IncidenciaConcurrenciaTests extends IncidenciaSinTransaccionBase {
 		assertThat(i.getAsignadaA()).isNull();
 	}
 
-	// ---- alta simultanea de la misma persona ----
-
-	@RepeatedTest(3)
-	void dosAdministradoresAnadenALaMismaPersonaAlaVez_unoGana_elOtro409() throws Exception {
-		List<Integer> estados = lanzarALaVez(List.<Callable<Integer>>of(
-				() -> anadir(admin, "jugador@vibora.com", "MONITOR"),
-				() -> anadir(admin2, "jugador@vibora.com", "MANTENIMIENTO")));
-
-		assertThat(cuantos(estados, 201)).as("201: %s", estados).isEqualTo(1);
-		assertThat(cuantos(estados, 409)).as("409: %s", estados).isEqualTo(1);
-		assertThat(avisos(TipoNotificacion.PERSONAL_ANADIDO)).hasSize(1);
-		Usuario u = usuarios.findById(jugador.id()).orElseThrow();
-		assertThat(u.getRol()).isIn(Rol.MONITOR, Rol.MANTENIMIENTO);
-		assertThat(u.getClub()).isNotNull();
-	}
-
-	private int anadir(Persona actor, String email, String rol) throws Exception {
-		return mvc.perform(post("/api/clubes/" + club.getId() + "/personal").header("Authorization", actor.token())
-				.contentType(org.springframework.http.MediaType.APPLICATION_JSON)
-				.content("{\"email\":\"%s\",\"rol\":\"%s\"}".formatted(email, rol))).andReturn().getResponse().getStatus();
-	}
+	// (el alta simultanea de la misma persona ahora es por invitacion: ver InvitacionConcurrenciaTests)
 }

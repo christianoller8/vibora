@@ -22,6 +22,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.ResultActions;
@@ -138,6 +139,37 @@ abstract class IncidenciaApiTestBase extends ApiTestBase {
 		r = reservas.saveAndFlush(r);
 		participantes.saveAndFlush(TestData.participante(r, p.usuario(), 1));
 		return r;
+	}
+
+	// ---- invitaciones del personal (la unica via de alta: invitar y aceptar) ----
+
+	@Autowired JdbcTemplate jdbc;
+
+	ResultActions invitar(Persona actor, long clubId, String email, String rol) throws Exception {
+		return mvc.perform(post("/api/clubes/" + clubId + "/invitaciones").header("Authorization", actor.token())
+				.contentType(MediaType.APPLICATION_JSON).content(json("email", texto(email), "rol", texto(rol))));
+	}
+
+	ResultActions aceptar(Persona p, long invitacionId) throws Exception {
+		return mvc.perform(post("/api/invitaciones/" + invitacionId + "/aceptar").header("Authorization", p.token()));
+	}
+
+	/** Id de la invitacion mas reciente de ese club y correo. */
+	long invitacionDe(long clubId, String email) {
+		return jdbc.queryForObject("select max(id) from invitacion_personal where club_id = ? and email = ?", Long.class,
+				clubId, email);
+	}
+
+	/**
+	 * Anade personal por el camino real: el administrador invita y la persona acepta. Devuelve a la persona con un
+	 * token NUEVO (volvio a iniciar sesion, como tiene que hacer tras aceptar).
+	 */
+	Persona anadirPersonal(Persona administrador, Club c, Persona p, String rol) throws Exception {
+		String email = p.usuario().getEmail();
+		invitar(administrador, c.getId(), email, rol).andExpect(status().isAccepted());
+		aceptar(p, invitacionDe(c.getId(), email)).andExpect(status().isOk());
+		refrescar();
+		return new Persona(usuarios.findById(p.id()).orElseThrow(), bearer(email));
 	}
 
 	// ---- llamadas HTTP ----

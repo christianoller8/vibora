@@ -51,6 +51,11 @@ public class TextosAviso {
 				euros(total), numeroOriginal, describir(reserva));
 	}
 
+	/** Recorta a {@code maximo} PUNTOS DE CODIGO (no unidades UTF-16): un emoji nunca queda partido por la mitad. */
+	public static String abreviar(String texto, int maximo) {
+		return texto.codePointCount(0, texto.length()) <= maximo ? texto : texto.substring(0, texto.offsetByCodePoints(0, maximo));
+	}
+
 	/** "11,25 €" */
 	public static String euros(BigDecimal importe) {
 		return String.format(ES, "%.2f €", importe);

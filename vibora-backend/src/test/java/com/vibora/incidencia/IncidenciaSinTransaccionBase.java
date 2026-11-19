@@ -70,6 +70,8 @@ abstract class IncidenciaSinTransaccionBase extends PostgresTestBase {
 	@Autowired PagoRepository pagos;
 	@Autowired NotificacionRepository notificaciones;
 	@Autowired PasswordEncoder passwordEncoder;
+	@Autowired com.vibora.personal.InvitacionPersonalRepository invitacionesPersonal;
+	@Autowired org.springframework.jdbc.core.JdbcTemplate jdbc;
 
 	Club club;
 	Pista pista;
@@ -100,6 +102,7 @@ abstract class IncidenciaSinTransaccionBase extends PostgresTestBase {
 	void limpiarBase() {
 		// orden de FK: bloqueo_pista / incidencia_foto / notificacion / incidencia_evento -> incidencia -> pago / cargo
 		// -> participante -> reserva -> tarifa / pista -> usuario -> club
+		invitacionesPersonal.deleteAllInBatch();
 		bloqueos.deleteAllInBatch();
 		fotos.deleteAllInBatch();
 		notificaciones.deleteAllInBatch();

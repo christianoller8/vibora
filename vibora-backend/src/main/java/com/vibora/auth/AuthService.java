@@ -6,20 +6,25 @@ import com.vibora.usuario.Rol;
 import com.vibora.usuario.Usuario;
 import com.vibora.usuario.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.Locale;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AuthService {
 
 	private final UsuarioRepository usuarios;
 	private final PasswordEncoder passwordEncoder;
 	private final JwtService jwtService;
+	private final com.vibora.personal.InvitacionService invitaciones;
 
 	@Transactional
 	public UsuarioResumen registrar(RegistroRequest peticion) {
@@ -35,11 +40,36 @@ public class AuthService {
 		// El cliente nunca elige rol ni club: el auto-registro siempre crea un jugador
 		usuario.setRol(Rol.JUGADOR);
 		usuario.setActivo(true);
+		Usuario guardado;
 		try {
-			return UsuarioResumen.de(usuarios.saveAndFlush(usuario));
+			guardado = usuarios.saveAndFlush(usuario);
 		} catch (DataIntegrityViolationException ex) {
 			// Carrera: otro registro con el mismo email entre el exists y el insert
 			throw emailYaRegistrado();
+		}
+		// despues del commit: el aviso va en su propia transaccion y no puede estropear el registro
+		if (TransactionSynchronizationManager.isSynchronizationActive()) {
+			TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+				@Override
+				public void afterCommit() {
+					avisarInvitacionesPrevias(guardado);
+				}
+			});
+		} else {
+			avisarInvitacionesPrevias(guardado);
+		}
+		return UsuarioResumen.de(guardado);
+	}
+
+	/**
+	 * Invitaciones que ya esperaban a este correo: un aviso resumen. Es un extra: fuera del try del email duplicado (un
+	 * fallo suyo no es "email ya registrado") y sin hacer fallar el registro. Sin datos personales en el log.
+	 */
+	private void avisarInvitacionesPrevias(Usuario guardado) {
+		try {
+			invitaciones.avisarInvitacionesPrevias(guardado);
+		} catch (RuntimeException ex) {
+			log.warn("No se pudo crear el aviso de invitaciones previas tras un registro ({})", ex.getClass().getSimpleName());
 		}
 	}
 
