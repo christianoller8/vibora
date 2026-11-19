@@ -1,9 +1,16 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { MatDialog } from '@angular/material/dialog';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { NEVER, of, throwError } from 'rxjs';
 import { NotificacionesStore } from '../../notificaciones/notificaciones.store';
 import { TiempoRealService } from '../../notificaciones/tiempo-real.service';
 import { Router, provideRouter } from '@angular/router';
 import { AuthService } from '../../auth/auth.service';
+import { InvitacionesStore } from '../../invitaciones/invitaciones.store';
+import { PersonalService } from '../../../features/club/personal.service';
+import { ConfirmDialog } from '../../../shared/components/confirm-dialog/confirm-dialog';
 import { USUARIO_ADMIN, USUARIO_JUGADOR, crearAuthFalso } from '../../../testing/test-utils';
 import { MainLayout } from './main-layout';
 
@@ -14,6 +21,11 @@ describe('MainLayout', () => {
     marcarLeida: vi.fn(),
     marcarTodas: vi.fn(),
   };
+  const pendientes = signal(0);
+  const invitacionesFalso = { pendientes };
+  const personal = { salir: vi.fn() };
+  const dialogo = { open: vi.fn() };
+  const snack = { open: vi.fn() };
   let tiempoRealCreado = false;
   let component: MainLayout;
   let fixture: ComponentFixture<MainLayout>;
@@ -25,6 +37,10 @@ describe('MainLayout', () => {
         provideRouter([]),
         { provide: AuthService, useValue: auth },
         { provide: NotificacionesStore, useValue: storeFalso },
+        { provide: InvitacionesStore, useValue: invitacionesFalso },
+        { provide: PersonalService, useValue: personal },
+        { provide: MatDialog, useValue: dialogo },
+        { provide: MatSnackBar, useValue: snack },
         {
           provide: TiempoRealService,
           useFactory: () => {
@@ -41,6 +57,13 @@ describe('MainLayout', () => {
   }
 
   const el = (): HTMLElement => fixture.nativeElement as HTMLElement;
+
+  beforeEach(() => {
+    pendientes.set(0);
+    personal.salir.mockReset();
+    dialogo.open.mockReset();
+    snack.open.mockReset();
+  });
 
   afterEach(() => vi.restoreAllMocks());
 
@@ -92,8 +115,163 @@ describe('MainLayout', () => {
       '/partidos',
       '/deudas',
       '/incidencias',
+      '/invitaciones',
       '/club/crear',
     ]);
+  });
+
+  describe('entrada "Invitaciones" (solo quien puede aceptar: jugador sin club)', () => {
+    const entrada = (): HTMLAnchorElement | undefined =>
+      Array.from(el().querySelectorAll<HTMLAnchorElement>('a[mat-list-item]')).find(
+        (a) => a.getAttribute('href') === '/invitaciones',
+      );
+
+    it('un jugador sin club la ve, con icono mail', async () => {
+      await crear(crearAuthFalso(USUARIO_JUGADOR));
+
+      expect(entrada()?.textContent).toContain('Invitaciones');
+      expect(entrada()?.querySelector('mat-icon')?.textContent?.trim()).toBe('mail');
+    });
+
+    it.each(['MONITOR', 'MANTENIMIENTO', 'ADMIN_CLUB'] as const)('un %s no la ve', async (rol) => {
+      await crear(crearAuthFalso({ ...USUARIO_ADMIN, rol }));
+
+      expect(entrada()).toBeUndefined();
+    });
+
+    it('sin usuario cargado (sesión incierta) tampoco', async () => {
+      const auth = crearAuthFalso();
+      auth.usuario.set(null);
+      auth.sesionIncierta.set(true);
+
+      await crear(auth);
+
+      expect(entrada()).toBeUndefined();
+    });
+
+    it('muestra el número de invitaciones pendientes en una insignia con descripción accesible', async () => {
+      pendientes.set(3);
+
+      await crear(crearAuthFalso(USUARIO_JUGADOR));
+
+      const insignia = entrada()!.querySelector('.mat-badge-content');
+      expect(insignia?.textContent?.trim()).toBe('3');
+      // el número de la insignia es visual; los lectores de pantalla leen un texto oculto con el mismo dato
+      expect(entrada()!.querySelector('.solo-lectores')?.textContent).toContain('3 pendientes');
+    });
+
+    it('sin invitaciones pendientes la insignia está oculta', async () => {
+      await crear(crearAuthFalso(USUARIO_JUGADOR));
+
+      expect(entrada()!.querySelector('.mat-badge-hidden')).not.toBeNull();
+    });
+  });
+
+  describe('"Salir del club" (solo personal: monitor y mantenimiento)', () => {
+    const botonSalirClub = (): HTMLButtonElement | null =>
+      el().querySelector<HTMLButtonElement>('button[data-accion="salir-club"]');
+    const personalAuth = (rol: 'MONITOR' | 'MANTENIMIENTO' = 'MONITOR') =>
+      crearAuthFalso({ ...USUARIO_ADMIN, rol });
+    const confirma = (respuesta: boolean): void => {
+      dialogo.open.mockReturnValue({ afterClosed: () => of(respuesta) });
+    };
+
+    it.each(['MONITOR', 'MANTENIMIENTO'] as const)(
+      'un %s tiene el botón, accesible',
+      async (rol) => {
+        await crear(personalAuth(rol));
+
+        expect(botonSalirClub()?.getAttribute('aria-label')).toBe('Salir del club');
+      },
+    );
+
+    it.each([USUARIO_ADMIN, USUARIO_JUGADOR])(
+      'un administrador o un jugador no lo tienen',
+      async (usuario) => {
+        await crear(crearAuthFalso(usuario));
+
+        expect(botonSalirClub()).toBeNull();
+      },
+    );
+
+    it('sin sesión no aparece', async () => {
+      await crear(crearAuthFalso(null));
+
+      expect(botonSalirClub()).toBeNull();
+    });
+
+    it('pide confirmación avisando de que sus incidencias activas quedarán sin asignar', async () => {
+      await crear(personalAuth());
+      confirma(false);
+
+      botonSalirClub()!.click();
+
+      const [componente, config] = dialogo.open.mock.calls[0];
+      expect(componente).toBe(ConfirmDialog);
+      expect(config.data.titulo).toContain('Salir del club');
+      expect(config.data.mensaje).toContain('incidencias');
+      expect(config.data.mensaje).toContain('sin asignar');
+      expect(config.data.mensaje).toContain('volver a iniciar sesión');
+      expect(personal.salir).not.toHaveBeenCalled();
+    });
+
+    it('al confirmar sale, cierra la sesión y va a /login con el motivo', async () => {
+      personal.salir.mockReturnValue(of(undefined));
+      const auth = personalAuth();
+      await crear(auth);
+      const navegar = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+      confirma(true);
+
+      botonSalirClub()!.click();
+
+      expect(personal.salir).toHaveBeenCalledTimes(1);
+      expect(auth.logout).toHaveBeenCalledTimes(1);
+      expect(navegar).toHaveBeenCalledWith(['/login'], {
+        queryParams: { motivo: 'salida-del-club' },
+      });
+    });
+
+    it('no cierra la sesión hasta que el backend responde', async () => {
+      personal.salir.mockReturnValue(NEVER);
+      const auth = personalAuth();
+      await crear(auth);
+      confirma(true);
+
+      botonSalirClub()!.click();
+
+      expect(auth.logout).not.toHaveBeenCalled();
+    });
+
+    it('si se cancela la confirmación no hace nada', async () => {
+      const auth = personalAuth();
+      await crear(auth);
+      confirma(false);
+
+      botonSalirClub()!.click();
+
+      expect(personal.salir).not.toHaveBeenCalled();
+      expect(auth.logout).not.toHaveBeenCalled();
+    });
+
+    it('un 409 se avisa con el mensaje del backend y la sesión sigue abierta', async () => {
+      personal.salir.mockReturnValue(
+        throwError(
+          () =>
+            new HttpErrorResponse({
+              status: 409,
+              error: { error: 'El administrador no puede salir del club' },
+            }),
+        ),
+      );
+      const auth = personalAuth();
+      await crear(auth);
+      confirma(true);
+
+      botonSalirClub()!.click();
+
+      expect(snack.open.mock.calls[0][0]).toBe('El administrador no puede salir del club');
+      expect(auth.logout).not.toHaveBeenCalled();
+    });
   });
 
   describe('entrada del club según el usuario', () => {

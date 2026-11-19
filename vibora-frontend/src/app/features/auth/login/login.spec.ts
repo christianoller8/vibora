@@ -50,6 +50,34 @@ describe('Login', () => {
 
   afterEach(() => vi.restoreAllMocks());
 
+  describe('aviso por el motivo de la redirección (?motivo=)', () => {
+    const aviso = (): HTMLElement | null => el().querySelector('[data-aviso="motivo"]');
+
+    it('tras aceptar una invitación explica que hay que iniciar sesión de nuevo', async () => {
+      await crear({ motivo: 'invitacion-aceptada' });
+
+      expect(aviso()?.getAttribute('role')).toBe('status');
+      expect(aviso()?.textContent).toContain('invitación');
+      expect(aviso()?.textContent).toContain('iniciar sesión de nuevo');
+    });
+
+    it('tras salir del club explica que hay que iniciar sesión de nuevo', async () => {
+      await crear({ motivo: 'salida-del-club' });
+
+      expect(aviso()?.textContent).toContain('saliste del club');
+    });
+
+    it('un motivo desconocido o ausente no pinta nada (el texto nunca viene de la URL)', async () => {
+      await crear({ motivo: '<b>hola</b>' });
+      expect(aviso()).toBeNull();
+      fixture.destroy();
+      TestBed.resetTestingModule();
+
+      await crear();
+      expect(aviso()).toBeNull();
+    });
+  });
+
   it('el botón de entrar está siempre habilitado (aunque el formulario sea inválido) si no hay envío en curso', async () => {
     await crear();
     expect(boton().disabled).toBe(false);

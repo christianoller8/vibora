@@ -1,5 +1,9 @@
 <h1>Iniciar sesión</h1>
 
+@if (aviso) {
+  <p class="aviso" data-aviso="motivo" role="status">{{ aviso }}</p>
+}
+
 <form [formGroup]="form" (ngSubmit)="enviar()" novalidate>
   <mat-form-field appearance="outline">
     <mat-label>Correo electrónico</mat-label>

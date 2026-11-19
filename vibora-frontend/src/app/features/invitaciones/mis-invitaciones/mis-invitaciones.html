@@ -1,0 +1,65 @@
+<h1>Invitaciones</h1>
+
+@if (store.cargando()) {
+  <mat-spinner diameter="40" aria-label="Cargando tus invitaciones" />
+} @else if (store.error(); as mensaje) {
+  <p class="error" role="alert">{{ mensaje }}</p>
+  <button mat-stroked-button type="button" data-accion="reintentar" (click)="recargar()">
+    Reintentar
+  </button>
+} @else if (store.items().length === 0) {
+  <p class="vacio">No tienes invitaciones pendientes.</p>
+} @else {
+  <ul class="lista" aria-label="Invitaciones pendientes">
+    @for (invitacion of store.items(); track invitacion.id) {
+      <li>
+        <mat-card class="invitacion" appearance="outlined">
+          <mat-card-header>
+            <mat-card-title>{{ invitacion.clubNombre }}</mat-card-title>
+            <mat-card-subtitle>
+              Te invita como
+              <mat-chip-set class="rol-chip" aria-label="Rol propuesto">
+                <mat-chip>{{ textoRol(invitacion) }}</mat-chip>
+              </mat-chip-set>
+            </mat-card-subtitle>
+          </mat-card-header>
+          <mat-card-content>
+            @if (invitadoPor(invitacion); as quien) {
+              <p class="quien">Invitado por {{ quien }}</p>
+            }
+            <p class="caducidad">
+              Válida hasta el {{ formatearFechaHora(invitacion.caducaEn) }} ({{
+                textoCaducidad(invitacion.caducaEn)
+              }})
+            </p>
+            @if (errores()[invitacion.id]; as fallo) {
+              <p class="error" role="alert">{{ fallo }}</p>
+            }
+          </mat-card-content>
+          <mat-card-actions align="end">
+            <button
+              mat-button
+              type="button"
+              data-accion="rechazar"
+              [attr.aria-label]="'Rechazar la invitación de ' + invitacion.clubNombre"
+              [disabled]="enCurso() !== null"
+              (click)="rechazar(invitacion)"
+            >
+              Rechazar
+            </button>
+            <button
+              mat-flat-button
+              type="button"
+              data-accion="aceptar"
+              [attr.aria-label]="'Aceptar la invitación de ' + invitacion.clubNombre"
+              [disabled]="enCurso() !== null"
+              (click)="aceptar(invitacion)"
+            >
+              Aceptar
+            </button>
+          </mat-card-actions>
+        </mat-card>
+      </li>
+    }
+  </ul>
+}

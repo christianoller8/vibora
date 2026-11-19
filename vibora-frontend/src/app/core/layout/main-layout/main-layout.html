@@ -28,6 +28,31 @@
           <mat-icon matListItemIcon>report_problem</mat-icon>
           <span matListItemTitle>Incidencias</span>
         </a>
+        <!-- solo quien puede aceptar una invitación (jugador sin club); el personal y el administrador no la ven -->
+        @if (auth.puedeCrearClub()) {
+          <a
+            mat-list-item
+            routerLink="/invitaciones"
+            routerLinkActive="activo"
+            (click)="alNavegar()"
+          >
+            <mat-icon matListItemIcon>mail</mat-icon>
+            <span
+              matListItemTitle
+              [matBadge]="invitaciones.pendientes()"
+              [matBadgeHidden]="invitaciones.pendientes() === 0"
+              matBadgeOverlap="false"
+              matBadgeSize="small"
+              >Invitaciones</span
+            >
+            @if (invitaciones.pendientes() > 0) {
+              <!-- el número de la insignia es solo visual: esto es lo que leen los lectores de pantalla -->
+              <span class="solo-lectores" data-testid="invitaciones-pendientes"
+                >{{ invitaciones.pendientes() }} pendientes</span
+              >
+            }
+          </a>
+        }
         @if (auth.esAdminClub()) {
           <a mat-list-item routerLink="/club" routerLinkActive="activo" (click)="alNavegar()">
             <mat-icon matListItemIcon>storefront</mat-icon>
@@ -57,6 +82,19 @@
       }
       @if (auth.estaAutenticado()) {
         <app-campana />
+        @if (esPersonal()) {
+          <button
+            mat-icon-button
+            type="button"
+            data-accion="salir-club"
+            aria-label="Salir del club"
+            title="Salir del club"
+            [disabled]="saliendoDelClub()"
+            (click)="salirDelClub()"
+          >
+            <mat-icon aria-hidden="true">exit_to_app</mat-icon>
+          </button>
+        }
         <button mat-button type="button" data-accion="salir" (click)="salir()">Salir</button>
       }
     </mat-toolbar>

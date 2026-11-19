@@ -9,6 +9,17 @@ import { mensajeDeError } from '../../../core/http/error.util';
 import { enfocarPrimerInvalido } from '../../../shared/forms/enfocar-invalido';
 import { destinoSeguro } from '../redirect.util';
 
+const MOTIVOS: ReadonlyMap<string, string> = new Map([
+  [
+    'invitacion-aceptada',
+    'Has aceptado la invitación. Para activar tus nuevos permisos tienes que iniciar sesión de nuevo.',
+  ],
+  [
+    'salida-del-club',
+    'Ya saliste del club. Tienes que iniciar sesión de nuevo para continuar como jugador.',
+  ],
+]);
+
 @Component({
   selector: 'app-login',
   imports: [ReactiveFormsModule, RouterLink, MatButtonModule, MatFormFieldModule, MatInputModule],
@@ -25,6 +36,12 @@ export class Login {
     email: ['', [Validators.required, Validators.email]],
     password: ['', [Validators.required]],
   });
+  /**
+   * Por qué se llegó al login sin haber cerrado la sesión a mano. El texto sale de una lista cerrada: lo que venga en
+   * la URL solo elige una clave, nunca se pinta.
+   */
+  protected readonly aviso: string | null =
+    MOTIVOS.get(this.route.snapshot.queryParamMap.get('motivo') ?? '') ?? null;
   protected readonly enviando = signal(false);
   protected readonly error = signal<string | null>(null);
 
