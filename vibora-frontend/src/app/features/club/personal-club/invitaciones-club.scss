@@ -1,0 +1,84 @@
+@use '../../../shared/styles/tabla-apilada' as apilada;
+
+:host {
+  display: block;
+  padding-top: 2rem;
+}
+
+@include apilada.tabla-apilada('tr.invitacion');
+
+.cabecera {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  margin-bottom: 1rem;
+
+  h3 {
+    margin: 0;
+    font: var(--mat-sys-title-medium);
+  }
+}
+
+.filtro button.activo {
+  background: var(--mat-sys-secondary-container);
+  color: var(--mat-sys-on-secondary-container);
+}
+
+.tabla {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+}
+
+.acciones {
+  text-align: end;
+  white-space: nowrap;
+}
+
+.oculto {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.vacio {
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.error {
+  color: var(--mat-sys-error);
+}
+
+// Un color propio por estado; el texto de la chip sigue siendo lo que lo identifica (no solo el color)
+mat-chip.estado {
+  &.estado-pendiente {
+    --mat-chip-elevated-container-color: var(--mat-sys-tertiary-container);
+    --mat-chip-label-text-color: var(--mat-sys-on-tertiary-container);
+  }
+
+  &.estado-aceptada {
+    --mat-chip-elevated-container-color: var(--mat-sys-primary-container);
+    --mat-chip-label-text-color: var(--mat-sys-on-primary-container);
+  }
+
+  &.estado-rechazada {
+    --mat-chip-elevated-container-color: var(--mat-sys-error-container);
+    --mat-chip-label-text-color: var(--mat-sys-on-error-container);
+  }
+
+  &.estado-cancelada,
+  &.estado-caducada {
+    --mat-chip-elevated-container-color: var(--mat-sys-surface-variant);
+    --mat-chip-label-text-color: var(--mat-sys-on-surface-variant);
+  }
+
+  &.estado-caducada {
+    font-style: italic;
+  }
+}

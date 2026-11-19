@@ -11,15 +11,18 @@ import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { InvitacionService } from '../../../core/api/invitacion.service';
 import { mensajeDeError } from '../../../core/http/error.util';
-import { MiembroPersonal } from '../../../shared/models/incidencia.model';
 import { ROLES_PERSONAL, RolPersonal } from '../../../shared/models/personal.model';
 import { ETIQUETA_ROL } from '../../../shared/models/usuario.model';
-import { PersonalService } from '../personal.service';
 
-export interface PersonalDialogData {
+export interface InvitarDialogData {
   clubId: number;
 }
+
+/** Texto único tras invitar: no dice (ni puede decir) si el correo pertenece a un usuario registrado. */
+export const MENSAJE_INVITACION_NEUTRO =
+  'Si el correo es válido, la persona recibirá la invitación.';
 
 /** Máximo que admite el backend (`@Size(max = 255)`). */
 const EMAIL_MAXIMO = 255;
@@ -37,11 +40,11 @@ function emailRecortado(control: AbstractControl): ValidationErrors | null {
 }
 
 /**
- * Alta de personal. Hace la petición él mismo para mostrar los errores (404 "no existe", 409 "ya pertenece a un club")
- * sin cerrarse, y se cierra con la persona añadida.
+ * Invitación de personal. Hace la petición él mismo para mostrar 400/429 sin cerrarse. En el éxito (202) se cierra
+ * con el mensaje neutro: la respuesta del backend es la misma exista o no el correo y aquí no se mira nada más.
  */
 @Component({
-  selector: 'app-personal-dialog',
+  selector: 'app-invitar-dialog',
   imports: [
     ReactiveFormsModule,
     MatButtonModule,
@@ -49,13 +52,13 @@ function emailRecortado(control: AbstractControl): ValidationErrors | null {
     MatFormFieldModule,
     MatInputModule,
   ],
-  templateUrl: './personal-dialog.html',
-  styleUrl: './personal-dialog.scss',
+  templateUrl: './invitar-dialog.html',
+  styleUrl: './invitar-dialog.scss',
 })
-export class PersonalDialog {
-  private readonly datos = inject<PersonalDialogData>(MAT_DIALOG_DATA);
-  private readonly dialogRef = inject<MatDialogRef<PersonalDialog, MiembroPersonal>>(MatDialogRef);
-  private readonly personalService = inject(PersonalService);
+export class InvitarDialog {
+  private readonly datos = inject<InvitarDialogData>(MAT_DIALOG_DATA);
+  private readonly dialogRef = inject<MatDialogRef<InvitarDialog, string>>(MatDialogRef);
+  private readonly invitaciones = inject(InvitacionService);
 
   protected readonly roles = ROLES_PERSONAL;
   protected readonly etiquetaRol = ETIQUETA_ROL;
@@ -64,22 +67,22 @@ export class PersonalDialog {
     email: ['', [emailRecortado]],
     rol: ['MONITOR' as RolPersonal, [Validators.required]],
   });
-  protected readonly guardando = signal(false);
+  protected readonly enviando = signal(false);
   protected readonly error = signal<string | null>(null);
 
-  protected guardar(): void {
-    if (this.form.invalid || this.guardando()) {
+  protected enviar(): void {
+    if (this.form.invalid || this.enviando()) {
       this.form.markAllAsTouched();
       return;
     }
     const { email, rol } = this.form.getRawValue();
-    this.guardando.set(true);
+    this.enviando.set(true);
     this.error.set(null);
-    this.personalService.agregar(this.datos.clubId, { email: email.trim(), rol }).subscribe({
-      next: (persona) => this.dialogRef.close(persona),
+    this.invitaciones.crear(this.datos.clubId, { email: email.trim(), rol }).subscribe({
+      next: (respuesta) => this.dialogRef.close(textoNeutro(respuesta.mensaje)),
       error: (err: unknown) => {
         this.error.set(mensajeDeError(err, this.mensajePorDefecto(err)));
-        this.guardando.set(false);
+        this.enviando.set(false);
       },
     });
   }
@@ -90,14 +93,13 @@ export class PersonalDialog {
 
   /** Texto propio por si el backend no manda mensaje. */
   private mensajePorDefecto(err: unknown): string {
-    if (err instanceof HttpErrorResponse) {
-      if (err.status === 404) {
-        return 'No existe ningún usuario con ese email.';
-      }
-      if (err.status === 409) {
-        return 'Ese usuario ya pertenece a un club.';
-      }
+    if (err instanceof HttpErrorResponse && err.status === 429) {
+      return 'Has alcanzado el límite de invitaciones. Inténtalo más tarde.';
     }
-    return 'No se pudo añadir a la persona. Inténtalo de nuevo.';
+    return 'No se pudo enviar la invitación. Inténtalo de nuevo.';
   }
+}
+
+function textoNeutro(mensaje: string | null | undefined): string {
+  return typeof mensaje === 'string' && mensaje.trim() !== '' ? mensaje : MENSAJE_INVITACION_NEUTRO;
 }

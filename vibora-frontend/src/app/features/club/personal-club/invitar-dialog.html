@@ -1,9 +1,10 @@
-<h2 mat-dialog-title>Añadir personal</h2>
+<h2 mat-dialog-title>Invitar al personal</h2>
 
-<form [formGroup]="form" (ngSubmit)="guardar()" novalidate>
+<form [formGroup]="form" (ngSubmit)="enviar()" novalidate>
   <mat-dialog-content>
     <p class="ayuda">
-      La persona tiene que estar ya registrada en Víbora y no pertenecer a ningún club.
+      Enviaremos una invitación al correo indicado. La persona decidirá si la acepta; hasta entonces
+      no cambia nada en su cuenta.
     </p>
 
     <mat-form-field appearance="outline">
@@ -42,8 +43,8 @@
 
   <mat-dialog-actions align="end">
     <button mat-button type="button" data-accion="cancelar" (click)="cancelar()">Cancelar</button>
-    <button mat-flat-button type="submit" [disabled]="form.invalid || guardando()">
-      {{ guardando() ? 'Añadiendo…' : 'Añadir' }}
+    <button mat-flat-button type="submit" [disabled]="form.invalid || enviando()">
+      {{ enviando() ? 'Enviando…' : 'Invitar' }}
     </button>
   </mat-dialog-actions>
 </form>

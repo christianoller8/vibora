@@ -28,24 +28,12 @@ describe('PersonalService', () => {
     expect(await resultado).toHaveLength(1);
   });
 
-  it('añade con POST /api/clubes/{id}/personal y {email, rol}; devuelve a la persona', async () => {
-    const resultado = firstValueFrom(
-      servicio.agregar(5, { email: 'pepe@club.es', rol: 'MANTENIMIENTO' }),
-    );
-    const req = http.expectOne('/api/clubes/5/personal');
+  it('el propio personal sale con POST /api/personal/salir (204)', async () => {
+    const resultado = firstValueFrom(servicio.salir());
+    const req = http.expectOne('/api/personal/salir');
     expect(req.request.method).toBe('POST');
-    expect(req.request.body).toEqual({ email: 'pepe@club.es', rol: 'MANTENIMIENTO' });
-    req.flush(
-      {
-        usuarioId: 20,
-        nombre: 'Pepe',
-        apellidos: 'Gil',
-        email: 'pepe@club.es',
-        rol: 'MANTENIMIENTO',
-      },
-      { status: 201, statusText: 'Created' },
-    );
-    expect((await resultado).usuarioId).toBe(20);
+    req.flush(null, { status: 204, statusText: 'No Content' });
+    expect(await resultado).toBeNull();
   });
 
   it('quita con DELETE /api/clubes/{id}/personal/{usuarioId} (204)', async () => {

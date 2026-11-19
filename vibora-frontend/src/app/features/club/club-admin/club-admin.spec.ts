@@ -19,7 +19,7 @@ describe('ClubAdmin', () => {
   const clubes = { obtener: vi.fn(), actualizar: vi.fn(), pistas: vi.fn() };
   const tarifas = { listar: vi.fn() };
   const reservas = { delClub: vi.fn(), cancelar: vi.fn() };
-  const personal = { listar: vi.fn(), agregar: vi.fn(), quitar: vi.fn() };
+  const personal = { listar: vi.fn(), quitar: vi.fn() };
   const bloqueos = { listar: vi.fn() };
 
   async function crear(auth = crearAuthFalso(USUARIO_ADMIN)): Promise<void> {

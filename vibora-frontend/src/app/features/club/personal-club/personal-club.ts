@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, OnInit, inject, input, signal } from '@angular/core';
+import { Component, OnInit, inject, input, signal, viewChild } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatDialog } from '@angular/material/dialog';
@@ -16,12 +16,14 @@ import { MiembroPersonal } from '../../../shared/models/incidencia.model';
 import { ETIQUETA_ROL } from '../../../shared/models/usuario.model';
 import { nombreVisible } from '../../../shared/util/nombres';
 import { PersonalService } from '../personal.service';
-import { PersonalDialog, PersonalDialogData } from './personal-dialog';
+import { InvitacionesClub } from './invitaciones-club';
+import { InvitarDialog, InvitarDialogData } from './invitar-dialog';
 
 /** Gestión del personal del club: quién es administrador, monitor o mantenimiento, con alta y baja. */
 @Component({
   selector: 'app-personal-club',
   imports: [
+    InvitacionesClub,
     MatButtonModule,
     MatChipsModule,
     MatIconModule,
@@ -37,6 +39,7 @@ export class PersonalClub implements OnInit {
   private readonly snack = inject(MatSnackBar);
 
   readonly clubId = input.required<number>();
+  private readonly invitacionesClub = viewChild(InvitacionesClub);
 
   protected readonly personal = signal<MiembroPersonal[]>([]);
   protected readonly cargando = signal(true);
@@ -82,20 +85,17 @@ export class PersonalClub implements OnInit {
     return persona.rol !== 'ADMIN_CLUB';
   }
 
-  protected anadir(): void {
+  /** La invitación no cambia el personal hasta que la persona acepta: solo se refresca la lista de invitaciones. */
+  protected invitar(): void {
     this.dialog
-      .open<PersonalDialog, PersonalDialogData, MiembroPersonal>(PersonalDialog, {
+      .open<InvitarDialog, InvitarDialogData, string>(InvitarDialog, {
         data: { clubId: this.clubId() },
       })
       .afterClosed()
-      .subscribe((nueva) => {
-        if (nueva) {
-          this.aviso(
-            `${this.nombreCompleto(nueva)} ya forma parte del personal como ${this.etiquetaRol[nueva.rol]}. ` +
-              'Tendrá que volver a iniciar sesión para que sus nuevos permisos se apliquen.',
-            12000,
-          );
-          this.cargar(false);
+      .subscribe((mensaje) => {
+        if (mensaje) {
+          this.aviso(mensaje, 8000);
+          this.invitacionesClub()?.recargar();
         }
       });
   }

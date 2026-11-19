@@ -2,9 +2,8 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { MiembroPersonal } from '../../shared/models/incidencia.model';
-import { PersonalRequest } from '../../shared/models/personal.model';
 
-/** Personal de un club: solo lo gestiona su administrador. */
+/** Personal de un club. El alta se hace por invitación (`InvitacionService`); la baja la gestiona su administrador. */
 @Injectable({ providedIn: 'root' })
 export class PersonalService {
   private readonly http = inject(HttpClient);
@@ -15,11 +14,11 @@ export class PersonalService {
   }
 
   /**
-   * Solo MONITOR o MANTENIMIENTO. 404 si no existe ningún usuario con ese email; 409 si ya pertenece a un club. Quien
-   * se añade debe volver a iniciar sesión: su token actual sigue diciendo JUGADOR.
+   * El propio personal (MONITOR/MANTENIMIENTO) deja el club: 204. 409 si es administrador o jugador. Sus incidencias
+   * activas quedan sin asignar y debe volver a iniciar sesión (su token sigue diciendo MONITOR/MANTENIMIENTO).
    */
-  agregar(clubId: number, datos: PersonalRequest): Observable<MiembroPersonal> {
-    return this.http.post<MiembroPersonal>(`/api/clubes/${clubId}/personal`, datos);
+  salir(): Observable<void> {
+    return this.http.post<void>('/api/personal/salir', null);
   }
 
   /**

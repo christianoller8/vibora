@@ -1,13 +1,17 @@
 import { HttpErrorResponse } from '@angular/common/http';
+import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { NEVER, of, throwError } from 'rxjs';
+import { EMPTY, NEVER, of, throwError } from 'rxjs';
+import { InvitacionService } from '../../../core/api/invitacion.service';
+import { AuthService } from '../../../core/auth/auth.service';
+import { NotificacionesStore } from '../../../core/notificaciones/notificaciones.store';
 import { ConfirmDialog } from '../../../shared/components/confirm-dialog/confirm-dialog';
 import { MiembroPersonal } from '../../../shared/models/incidencia.model';
 import { PersonalService } from '../personal.service';
+import { InvitarDialog } from './invitar-dialog';
 import { PersonalClub } from './personal-club';
-import { PersonalDialog } from './personal-dialog';
 
 const ADMIN: MiembroPersonal = {
   usuarioId: 9,
@@ -44,6 +48,7 @@ const http = (status: number, error?: unknown): HttpErrorResponse =>
 describe('PersonalClub', () => {
   let fixture: ComponentFixture<PersonalClub>;
   const personal = { listar: vi.fn(), quitar: vi.fn() };
+  const invitaciones = { listar: vi.fn() };
   const dialogo = { open: vi.fn() };
   const snack = { open: vi.fn() };
 
@@ -52,6 +57,9 @@ describe('PersonalClub', () => {
       imports: [PersonalClub],
       providers: [
         { provide: PersonalService, useValue: personal },
+        { provide: InvitacionService, useValue: invitaciones },
+        { provide: NotificacionesStore, useValue: { recibidas$: EMPTY } },
+        { provide: AuthService, useValue: { sesionIncierta: signal(false) } },
         { provide: MatDialog, useValue: dialogo },
         { provide: MatSnackBar, useValue: snack },
       ],
@@ -74,6 +82,7 @@ describe('PersonalClub', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     personal.listar.mockReturnValue(of([ADMIN, PEPE, LOLA, SIN_NOMBRE]));
+    invitaciones.listar.mockReturnValue(of([]));
     cierraCon(undefined);
   });
 
@@ -157,41 +166,59 @@ describe('PersonalClub', () => {
     });
   });
 
-  describe('añadir personal', () => {
-    it('el botón abre el diálogo de alta con el club', async () => {
+  describe('invitar', () => {
+    it('ya no hay alta directa: el botón es "Invitar"', async () => {
       await crear();
 
-      q<HTMLButtonElement>('button[data-accion="anadir"]')!.click();
+      expect(q('button[data-accion="anadir"]')).toBeNull();
+      expect(texto(q('button[data-accion="invitar"]'))).toContain('Invitar');
+      expect(texto(el())).not.toContain('Añadir personal');
+    });
+
+    it('el botón abre el diálogo de invitación con el club', async () => {
+      await crear();
+
+      q<HTMLButtonElement>('button[data-accion="invitar"]')!.click();
 
       const [componente, config] = dialogo.open.mock.calls[0];
-      expect(componente).toBe(PersonalDialog);
+      expect(componente).toBe(InvitarDialog);
       expect(config.data).toEqual({ clubId: 5 });
     });
 
-    it('al añadir avisa de que la persona debe volver a iniciar sesión y recarga la lista', async () => {
+    it('al invitar muestra el mensaje neutro recibido y recarga las invitaciones (no el personal)', async () => {
       await crear();
-      cierraCon({ ...PEPE, usuarioId: 30, nombre: 'Nuria', apellidos: 'Pons', rol: 'MONITOR' });
+      cierraCon('Si el correo es válido, la persona recibirá la invitación.');
       personal.listar.mockClear();
+      invitaciones.listar.mockClear();
 
-      q<HTMLButtonElement>('button[data-accion="anadir"]')!.click();
+      q<HTMLButtonElement>('button[data-accion="invitar"]')!.click();
       await fixture.whenStable();
 
-      const [mensaje] = snack.open.mock.calls[0];
-      expect(mensaje).toContain('Nuria Pons');
-      expect(mensaje).toContain('Monitor');
-      expect(mensaje).toContain('volver a iniciar sesión');
-      expect(personal.listar).toHaveBeenCalledTimes(1);
+      expect(snack.open.mock.calls[0][0]).toBe(
+        'Si el correo es válido, la persona recibirá la invitación.',
+      );
+      expect(invitaciones.listar).toHaveBeenCalledTimes(1);
+      expect(personal.listar).not.toHaveBeenCalled();
     });
 
-    it('si se cierra el diálogo sin añadir a nadie no avisa ni recarga', async () => {
+    it('si se cierra el diálogo sin invitar no avisa ni recarga', async () => {
       await crear();
       personal.listar.mockClear();
+      invitaciones.listar.mockClear();
 
-      q<HTMLButtonElement>('button[data-accion="anadir"]')!.click();
+      q<HTMLButtonElement>('button[data-accion="invitar"]')!.click();
       await fixture.whenStable();
 
       expect(snack.open).not.toHaveBeenCalled();
-      expect(personal.listar).not.toHaveBeenCalled();
+      expect(invitaciones.listar).not.toHaveBeenCalled();
+    });
+
+    it('debajo del personal hay una sección "Invitaciones" del mismo club', async () => {
+      await crear();
+
+      const seccion = q('app-invitaciones-club');
+      expect(seccion).not.toBeNull();
+      expect(invitaciones.listar).toHaveBeenCalledWith(5, undefined);
     });
   });
 

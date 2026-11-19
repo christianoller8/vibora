@@ -1,8 +1,8 @@
 <div class="cabecera">
   <h2>Personal</h2>
-  <button mat-flat-button type="button" data-accion="anadir" (click)="anadir()">
-    <mat-icon aria-hidden="true">person_add</mat-icon>
-    Añadir personal
+  <button mat-flat-button type="button" data-accion="invitar" (click)="invitar()">
+    <mat-icon aria-hidden="true">forward_to_inbox</mat-icon>
+    Invitar
   </button>
 </div>
 
@@ -64,3 +64,5 @@
     </table>
   </div>
 }
+
+<app-invitaciones-club [clubId]="clubId()" />
