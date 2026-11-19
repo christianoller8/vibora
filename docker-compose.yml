@@ -37,9 +37,11 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-vibora}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-vibora}
     ports:
-      # 5433 en el host: el 5432 lo usa otro proyecto. Solo en 127.0.0.1: sin esto Docker publica el puerto en todas
-      # las interfaces (la red local vería PostgreSQL con las credenciales de desarrollo vibora/vibora).
-      - "127.0.0.1:5433:5432"
+      # 15433 en el host (cambia con POSTGRES_PORT): el 5432 lo usa otro proyecto y Windows reserva rangos de puertos
+      # que cambian tras reiniciar (el 5433 cayó en 5358-5457: "bind: forbidden by its access permissions").
+      # Solo en 127.0.0.1: sin esto Docker publica el puerto en todas las interfaces (la red local vería PostgreSQL con
+      # las credenciales de desarrollo vibora/vibora).
+      - "127.0.0.1:${POSTGRES_PORT:-15433}:5432"
     volumes:
       - vibora-pgdata:/var/lib/postgresql/data
     healthcheck:

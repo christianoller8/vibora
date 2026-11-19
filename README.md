@@ -24,10 +24,15 @@ Desktop (la base de datos y los tests del backend usan contenedores).
 ## Arranque en local
 
 ```bash
-docker compose up -d db                      # PostgreSQL (puerto 5433, solo accesible desde tu máquina)
+docker compose up -d db                      # PostgreSQL (puerto 15433, solo accesible desde tu máquina)
 cd vibora-backend && ./mvnw spring-boot:run  # API en http://localhost:8081
 cd vibora-frontend && npm start              # app en http://localhost:4200
 ```
+
+En Windows, si Docker falla con `bind: An attempt was made to access a socket in a way forbidden by its access
+permissions`, el puerto del host cae en un rango reservado por el sistema (`netsh interface ipv4 show
+excludedportrange protocol=tcp`; cambia tras reiniciar). Elige otro con `POSTGRES_PORT` (compose) y el mismo valor en
+`VIBORA_DB_PORT` (backend).
 
 ## Tests
 
