@@ -76,8 +76,8 @@ h1 {
 .chip {
   padding: 0.125rem 0.75rem;
   border-radius: 999px;
-  background: var(--mat-sys-primary-container);
-  color: var(--mat-sys-on-primary-container);
+  background: var(--app-exito-contenedor);
+  color: var(--app-sobre-exito-contenedor);
   font: var(--mat-sys-label-large);
 
   &.chip-cancelada {

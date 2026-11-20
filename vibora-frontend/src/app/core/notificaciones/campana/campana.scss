@@ -22,7 +22,7 @@
   // no leída: texto en negrita y una franja de color a la izquierda
   &.no-leida {
     border-inline-start: 3px solid var(--mat-sys-primary);
-    background: var(--mat-sys-primary-container);
+    background: var(--mat-sys-surface-container-highest);
 
     .mensaje {
       font-weight: 600;

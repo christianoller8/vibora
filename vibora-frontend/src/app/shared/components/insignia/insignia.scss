@@ -11,10 +11,10 @@
   font: var(--mat-sys-label-large);
   white-space: nowrap;
 
-  // estados de incidencia
+  // estados de incidencia (colores semánticos de styles/_tema.scss; el texto siempre acompaña al color)
   &.variante-estado-abierta {
-    background: var(--mat-sys-primary-container);
-    color: var(--mat-sys-on-primary-container);
+    background: var(--app-aviso-contenedor);
+    color: var(--app-sobre-aviso-contenedor);
   }
 
   &.variante-estado-asignada {
@@ -22,10 +22,14 @@
     color: var(--mat-sys-on-secondary-container);
   }
 
-  &.variante-estado-en_curso,
+  &.variante-estado-en_curso {
+    background: var(--app-info-contenedor);
+    color: var(--app-sobre-info-contenedor);
+  }
+
   &.variante-estado-resuelta {
-    background: var(--mat-sys-tertiary-container);
-    color: var(--mat-sys-on-tertiary-container);
+    background: var(--app-exito-contenedor);
+    color: var(--app-sobre-exito-contenedor);
   }
 
   &.variante-estado-rechazada {
@@ -40,8 +44,8 @@
   }
 
   &.variante-prioridad-alta {
-    background: var(--mat-sys-tertiary-container);
-    color: var(--mat-sys-on-tertiary-container);
+    background: var(--app-aviso-contenedor);
+    color: var(--app-sobre-aviso-contenedor);
   }
 
   &.variante-prioridad-urgente {

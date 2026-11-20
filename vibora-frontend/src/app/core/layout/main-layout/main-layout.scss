@@ -4,6 +4,12 @@
 
 .menu {
   width: 220px;
+  border-inline-end: 1px solid var(--mat-sys-outline-variant);
+  background: var(--mat-sys-surface-container-low);
+}
+
+mat-toolbar {
+  border-bottom: 1px solid var(--mat-sys-outline-variant);
 }
 
 .contenido {
@@ -30,8 +36,8 @@
   margin-right: 0.5rem;
   padding: 0.125rem 0.75rem;
   border-radius: 999px;
-  background: var(--mat-sys-primary-container);
-  color: var(--mat-sys-on-primary-container);
+  background: var(--mat-sys-secondary-container);
+  color: var(--mat-sys-on-secondary-container);
   font: var(--mat-sys-label-medium);
   white-space: nowrap;
 }
@@ -51,8 +57,15 @@
   }
 }
 
+// entrada de menú activa: contenedor primario y texto del color de acento (estado seleccionado)
 .activo {
-  font-weight: 500;
+  --mat-list-list-item-container-color: var(--mat-sys-primary-container);
+  --mat-list-list-item-label-text-color: var(--mat-sys-on-primary-container);
+  --mat-list-list-item-leading-icon-color: var(--mat-sys-on-primary-container);
+  --mat-list-list-item-hover-label-text-color: var(--mat-sys-on-primary-container);
+  --mat-list-list-item-hover-leading-icon-color: var(--mat-sys-on-primary-container);
+  --mat-list-list-item-focus-label-text-color: var(--mat-sys-on-primary-container);
+  font-weight: 600;
 }
 
 .solo-lectores {

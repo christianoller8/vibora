@@ -5,7 +5,7 @@
 //   --app-exito / --app-aviso / --app-info (+ `-contenedor`, `sobre-`)  estados semánticos
 //   --app-foco                                                         anillo de foco
 //   --viz-*                                                            series, escala de calor y chrome de los gráficos
-// Cada token está definido para los DOS temas.
+// Cada token está definido para los DOS temas. `scripts/colores.test.mjs` impide colores literales fuera de aquí.
 @use '@angular/material' as mat;
 @use 'theme-colors' as paletas;
 

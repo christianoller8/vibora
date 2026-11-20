@@ -29,7 +29,7 @@ h1 {
 }
 
 .positivo {
-  color: var(--mat-sys-tertiary);
+  color: var(--app-exito);
 }
 
 .negativo {
@@ -118,13 +118,13 @@ h1 {
   font: var(--mat-sys-label-large);
 
   &.estado-pendiente {
-    background: var(--mat-sys-primary-container);
-    color: var(--mat-sys-on-primary-container);
+    background: var(--app-aviso-contenedor);
+    color: var(--app-sobre-aviso-contenedor);
   }
 
   &.estado-pagado {
-    background: var(--mat-sys-tertiary-container);
-    color: var(--mat-sys-on-tertiary-container);
+    background: var(--app-exito-contenedor);
+    color: var(--app-sobre-exito-contenedor);
   }
 }
 

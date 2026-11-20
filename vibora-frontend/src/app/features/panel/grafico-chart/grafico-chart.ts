@@ -10,6 +10,7 @@ import {
   viewChild,
 } from '@angular/core';
 import type { ChartConfiguration } from 'chart.js';
+import { TemaService } from '../../../core/tema/tema.service';
 import { EspecGrafico } from '../mapeo';
 import { CARGADOR_CHART, GraficoVivo } from './cargador-chart';
 import { construirConfig, leerEstilo } from './config-chart';
@@ -37,6 +38,7 @@ export class GraficoChart {
   readonly espec = input.required<EspecGrafico>();
 
   private readonly cargador = inject(CARGADOR_CHART);
+  private readonly tema = inject(TemaService);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly lienzo = viewChild<ElementRef<HTMLCanvasElement>>('lienzo');
 
@@ -52,6 +54,9 @@ export class GraficoChart {
   constructor() {
     effect(() => {
       const espec = this.espec();
+      // Los colores se leen del CSS al pintar: cambiar de tema debe repintar el gráfico (TemaService aplica el tema en
+      // <html> antes de emitir, así que `leerEstilo` ya ve los colores nuevos).
+      this.tema.tema();
       const canvas = this.lienzo()?.nativeElement;
       if (canvas !== undefined) {
         untracked(() => void this.pintar(espec, canvas));

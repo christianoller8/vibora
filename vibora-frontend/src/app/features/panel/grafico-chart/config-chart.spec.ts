@@ -7,6 +7,9 @@ const ESTILO: EstiloGrafico = {
   rejilla: '#444444',
   eje: '#555555',
   superficie: '#666666',
+  tooltipFondo: '#777777',
+  tooltipTexto: '#888888',
+  tooltipBorde: '#999999',
   sinAnimacion: false,
 };
 
@@ -122,6 +125,15 @@ describe('construirConfig', () => {
     expect(tooltip.label({ datasetIndex: 1, dataIndex: 0 })).toBe('Canceladas: 1');
   });
 
+  it('el tooltip toma fondo, título, cuerpo y borde del tema (no los valores por defecto de Chart.js)', () => {
+    const tooltip = (construirConfig(COLUMNAS, ESTILO) as any).options.plugins.tooltip;
+    expect(tooltip.backgroundColor).toBe('#777777');
+    expect(tooltip.titleColor).toBe('#888888');
+    expect(tooltip.bodyColor).toBe('#888888');
+    expect(tooltip.borderColor).toBe('#999999');
+    expect(tooltip.borderWidth).toBe(1);
+  });
+
   it('el tooltip de un valor sin dato dice "—"', () => {
     const config = construirConfig(BARRAS, ESTILO) as any;
     expect(config.options.plugins.tooltip.callbacks.label({ datasetIndex: 0, dataIndex: 1 })).toBe(
@@ -148,6 +160,9 @@ describe('leerEstilo', () => {
       '--viz-rejilla': '#101010',
       '--viz-eje': '#202020',
       '--viz-superficie': '#303030',
+      '--viz-tooltip-fondo': '#404040',
+      '--viz-tooltip-texto': '#505050',
+      '--viz-tooltip-borde': '#606060',
     };
     vi.spyOn(window, 'getComputedStyle').mockReturnValue({
       getPropertyValue: (nombre: string) => valores[nombre] ?? '',
@@ -160,6 +175,9 @@ describe('leerEstilo', () => {
     expect(estilo.rejilla).toBe('#101010');
     expect(estilo.eje).toBe('#202020');
     expect(estilo.superficie).toBe('#303030');
+    expect(estilo.tooltipFondo).toBe('#404040');
+    expect(estilo.tooltipTexto).toBe('#505050');
+    expect(estilo.tooltipBorde).toBe('#606060');
   });
 
   it('un color que el canvas no entiende (light-dark(), var()) se resuelve con un elemento sonda', () => {
@@ -191,11 +209,42 @@ describe('leerEstilo', () => {
             getPropertyValue: () => 'light-dark(#c4c6d0, #44474e)',
           }) as unknown as typeof getComputedStyle);
 
-    expect(leerEstilo(el).rejilla).toMatch(/^#[0-9a-f]{6}$/i);
+    // sin color calculado en el elemento, el último recurso es el color de texto del sistema (ningún literal en el código)
+    expect(leerEstilo(el).rejilla).toBe('CanvasText');
     el.remove();
   });
 
-  it('si las variables no existen usa unos colores de reserva legibles (nunca cadenas vacías)', () => {
+  it('si las variables no existen usa el color de texto calculado del elemento (el del tema activo)', () => {
+    const el = document.createElement('div');
+    document.body.appendChild(el);
+    vi.spyOn(window, 'getComputedStyle').mockReturnValue({
+      color: 'rgb(9, 8, 7)',
+      getPropertyValue: () => '',
+    } as unknown as CSSStyleDeclaration);
+
+    const estilo = leerEstilo(el);
+
+    for (const color of [
+      estilo.series.serie1,
+      estilo.series.serie2,
+      estilo.texto,
+      estilo.rejilla,
+      estilo.eje,
+      estilo.superficie,
+      estilo.tooltipFondo,
+      estilo.tooltipTexto,
+      estilo.tooltipBorde,
+    ]) {
+      expect(color).toBe('rgb(9, 8, 7)');
+    }
+    el.remove();
+  });
+
+  it('en un elemento suelto (sin variables ni color calculado) todo cae exactamente en CanvasText', () => {
+    vi.spyOn(window, 'getComputedStyle').mockReturnValue({
+      color: '',
+      getPropertyValue: () => '',
+    } as unknown as CSSStyleDeclaration);
     const estilo = leerEstilo(document.createElement('div'));
     for (const color of [
       estilo.series.serie1,
@@ -204,8 +253,11 @@ describe('leerEstilo', () => {
       estilo.rejilla,
       estilo.eje,
       estilo.superficie,
+      estilo.tooltipFondo,
+      estilo.tooltipTexto,
+      estilo.tooltipBorde,
     ]) {
-      expect(color).toMatch(/^#[0-9a-f]{6}$/i);
+      expect(color).toBe('CanvasText');
     }
   });
 

@@ -8,18 +8,17 @@ export interface EstiloGrafico {
   rejilla: string;
   eje: string;
   superficie: string;
+  tooltipFondo: string;
+  tooltipTexto: string;
+  tooltipBorde: string;
   sinAnimacion: boolean;
 }
 
-/** Reserva por si faltan las variables CSS (paleta de datos validada, tema claro). */
-const RESERVA = {
-  serie1: '#2a78d6',
-  serie2: '#eb6834',
-  texto: '#52514e',
-  rejilla: '#e1e0d9',
-  eje: '#c3c2b7',
-  superficie: '#fcfcfb',
-} as const;
+/**
+ * Último recurso si ni siquiera el elemento tiene color calculado: el color de texto del sistema. Los colores de los
+ * gráficos viven en los tokens `--viz-*` de styles/_tema.scss (uno por tema); aquí no hay ninguno escrito.
+ */
+const RESERVA_SISTEMA = 'CanvasText';
 
 /**
  * Los tokens de Material llegan como `light-dark(#c4c6d0, #44474e)` y el canvas de Chart.js no entiende esa función
@@ -41,27 +40,31 @@ function resolverColor(contenedor: HTMLElement, valor: string, reserva: string):
 }
 
 /**
- * Lee los colores de las variables CSS `--viz-*` del elemento (así un tema oscuro solo cambia el CSS) y la
- * preferencia `prefers-reduced-motion`.
+ * Lee los colores de las variables CSS `--viz-*` del elemento (así cada tema solo cambia el CSS) y la preferencia
+ * `prefers-reduced-motion`. Si falta una variable se usa el color de texto calculado del elemento (el del tema activo).
  */
 export function leerEstilo(elemento: HTMLElement): EstiloGrafico {
   const css = getComputedStyle(elemento);
-  const variable = (nombre: string, reserva: string): string => {
+  const base = css.color ? css.color : RESERVA_SISTEMA;
+  const variable = (nombre: string): string => {
     const valor = css.getPropertyValue(nombre).trim();
-    return valor === '' ? reserva : resolverColor(elemento, valor, reserva);
+    return valor === '' ? base : resolverColor(elemento, valor, base);
   };
   const sinAnimacion =
     typeof window.matchMedia === 'function' &&
     window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   return {
     series: {
-      serie1: variable('--viz-serie-1', RESERVA.serie1),
-      serie2: variable('--viz-serie-2', RESERVA.serie2),
+      serie1: variable('--viz-serie-1'),
+      serie2: variable('--viz-serie-2'),
     },
-    texto: variable('--viz-texto', RESERVA.texto),
-    rejilla: variable('--viz-rejilla', RESERVA.rejilla),
-    eje: variable('--viz-eje', RESERVA.eje),
-    superficie: variable('--viz-superficie', RESERVA.superficie),
+    texto: variable('--viz-texto'),
+    rejilla: variable('--viz-rejilla'),
+    eje: variable('--viz-eje'),
+    superficie: variable('--viz-superficie'),
+    tooltipFondo: variable('--viz-tooltip-fondo'),
+    tooltipTexto: variable('--viz-tooltip-texto'),
+    tooltipBorde: variable('--viz-tooltip-borde'),
     sinAnimacion,
   };
 }
@@ -119,6 +122,12 @@ export function construirConfig(
       plugins: {
         legend: { display: false },
         tooltip: {
+          // sin esto Chart.js pinta negro al 80 % con texto blanco, ajeno al tema (apenas se separa de la tarjeta oscura)
+          backgroundColor: estilo.tooltipFondo,
+          titleColor: estilo.tooltipTexto,
+          bodyColor: estilo.tooltipTexto,
+          borderColor: estilo.tooltipBorde,
+          borderWidth: 1,
           callbacks: {
             title: (items) => espec.etiquetasLargas[items[0].dataIndex],
             label: (item) => {

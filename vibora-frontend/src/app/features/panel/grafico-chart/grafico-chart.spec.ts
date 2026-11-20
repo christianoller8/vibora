@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import type { Mock } from 'vitest';
+import { TemaService } from '../../../core/tema/tema.service';
 import { EspecGrafico } from '../mapeo';
 import { CARGADOR_CHART, CargadorChart, GraficoVivo } from './cargador-chart';
 import { GraficoChart } from './grafico-chart';
@@ -107,6 +108,61 @@ describe('GraficoChart', () => {
     expect(vivo.actualizar).toHaveBeenCalledTimes(1);
     const config = vivo.actualizar.mock.calls[0][0] as ConfigFalsa;
     expect(config.data.datasets[0].data).toEqual([9, 9]);
+  });
+
+  describe('cambio de tema', () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+      localStorage.clear();
+      document.documentElement.removeAttribute('data-theme');
+      document.documentElement.style.removeProperty('color-scheme');
+    });
+
+    /** getComputedStyle falso: el color de la serie 1 depende del tema que haya en <html> en ESE momento. */
+    function colorSegunTema(): void {
+      vi.spyOn(window, 'getComputedStyle').mockImplementation((() => ({
+        color: 'rgb(0, 0, 0)',
+        getPropertyValue: (nombre: string) =>
+          nombre === '--viz-serie-1'
+            ? `rgb(10, 10, ${document.documentElement.getAttribute('data-theme') === 'light' ? 1 : 2})`
+            : 'rgb(5, 5, 5)',
+      })) as unknown as typeof getComputedStyle);
+    }
+
+    it('al cambiar de tema el gráfico vivo se repinta con los colores del tema nuevo, sin recrearse', async () => {
+      colorSegunTema();
+      await crear(espec([1, 2]));
+      const vivo = falso.llamadas[0].resolver()!;
+      await asentar();
+      expect(vivo.actualizar).not.toHaveBeenCalled();
+
+      TestBed.inject(TemaService).alternar(); // oscuro -> claro
+      await fixture.whenStable();
+
+      expect(falso.llamadas).toHaveLength(1);
+      expect(vivo.destroy).not.toHaveBeenCalled();
+      expect(vivo.actualizar).toHaveBeenCalledTimes(1);
+      const config = vivo.actualizar.mock.calls[0][0] as {
+        data: { datasets: { backgroundColor: string }[] };
+      };
+      expect(config.data.datasets[0].backgroundColor).toBe('rgb(10, 10, 1)');
+    });
+
+    it('si el tema cambia mientras Chart.js aún carga, el gráfico acaba con los colores del tema vigente', async () => {
+      colorSegunTema();
+      await crear(espec([1]));
+
+      TestBed.inject(TemaService).alternar();
+      await fixture.whenStable();
+      const vivo = falso.llamadas.map((l) => l.resolver())[0]!;
+      await asentar();
+
+      expect(falso.llamadas).toHaveLength(1);
+      const config = vivo.actualizar.mock.calls.at(-1)?.[0] as {
+        data: { datasets: { backgroundColor: string }[] };
+      };
+      expect(config.data.datasets[0].backgroundColor).toBe('rgb(10, 10, 1)');
+    });
   });
 
   it('si la especificación cambia mientras carga Chart.js no se crea un segundo gráfico sobre el mismo canvas', async () => {

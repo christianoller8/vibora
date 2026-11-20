@@ -1,6 +1,6 @@
 /*
  * Los colores de datos del panel (--viz-*: series, escala de calor, texto y rejilla) están definidos para los dos temas en
- * styles/_tema.scss; el gráfico los lee en tiempo de ejecución (getComputedStyle).
+ * styles/_tema.scss; el gráfico los lee en tiempo de ejecución (getComputedStyle) y se repinta al cambiar de tema.
  */
 :host {
   display: block;

@@ -58,13 +58,13 @@ table {
 // Un color propio por estado; el texto de la chip sigue siendo lo que lo identifica (no solo el color)
 mat-chip.estado {
   &.estado-pendiente {
-    --mat-chip-elevated-container-color: var(--mat-sys-tertiary-container);
-    --mat-chip-label-text-color: var(--mat-sys-on-tertiary-container);
+    --mat-chip-elevated-container-color: var(--app-aviso-contenedor);
+    --mat-chip-label-text-color: var(--app-sobre-aviso-contenedor);
   }
 
   &.estado-aceptada {
-    --mat-chip-elevated-container-color: var(--mat-sys-primary-container);
-    --mat-chip-label-text-color: var(--mat-sys-on-primary-container);
+    --mat-chip-elevated-container-color: var(--app-exito-contenedor);
+    --mat-chip-label-text-color: var(--app-sobre-exito-contenedor);
   }
 
   &.estado-rechazada {

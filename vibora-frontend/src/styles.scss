@@ -1,4 +1,4 @@
 // Estilos globales: fuentes autoalojadas y tema (tokens de Material 3 + tokens de aplicación) de los dos temas.
-// Los colores se definen SOLO en styles/_tema.scss.
+// Los colores se definen SOLO en styles/_tema.scss; ver scripts/colores.test.mjs.
 @use 'styles/fuentes';
 @use 'styles/tema';
