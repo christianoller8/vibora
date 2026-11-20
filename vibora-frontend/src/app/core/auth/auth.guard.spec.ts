@@ -16,7 +16,13 @@ import {
   crearJwt,
   segundosDesdeAhora,
 } from '../../testing/test-utils';
-import { adminClubGuard, authGuard, invitadoGuard, sinClubGuard } from './auth.guard';
+import {
+  adminClubGuard,
+  authGuard,
+  invitadoGuard,
+  redirigirRaiz,
+  sinClubGuard,
+} from './auth.guard';
 import { AuthService, CLAVE_TOKEN } from './auth.service';
 
 describe('guards de autenticación', () => {
@@ -128,6 +134,18 @@ describe('guards de autenticación', () => {
       expect(authIncierta.destinoPendiente).toBe('/club');
     });
 
+    it('redirigirRaiz va a la agenda y recuerda /panel hasta que se sepa que es administrador', () => {
+      localStorage.setItem(CLAVE_TOKEN, crearJwt(segundosDesdeAhora(3600)));
+      TestBed.configureTestingModule({
+        providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
+      });
+      const auth = TestBed.inject(AuthService);
+      auth.sesionIncierta.set(true);
+
+      expect(TestBed.runInInjectionContext(() => redirigirRaiz())).toBe('agenda');
+      expect(auth.destinoPendiente).toBe('/panel');
+    });
+
     it('authGuard e invitadoGuard no recuerdan nada', () => {
       ejecutarIncierta(authGuard);
       expect(authIncierta.destinoPendiente).toBeNull();
@@ -162,6 +180,19 @@ describe('guards de autenticación', () => {
 
     it('manda a /agenda a quien ya tiene sesión', () => {
       expect(ejecutar(invitadoGuard, '/login', true)).toBe('/agenda');
+    });
+
+    it('manda al administrador del club a /panel', () => {
+      localStorage.setItem(CLAVE_TOKEN, crearJwt(segundosDesdeAhora(3600)));
+      TestBed.configureTestingModule({
+        providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
+      });
+      TestBed.inject(AuthService).usuario.set(USUARIO_ADMIN);
+      const router = TestBed.inject(Router);
+      const resultado = TestBed.runInInjectionContext(() =>
+        invitadoGuard({} as ActivatedRouteSnapshot, { url: '/login' } as RouterStateSnapshot),
+      );
+      expect(router.serializeUrl(resultado as UrlTree)).toBe('/panel');
     });
   });
 });

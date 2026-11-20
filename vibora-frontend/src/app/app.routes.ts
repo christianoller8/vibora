@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { authGuard } from './core/auth/auth.guard';
+import { authGuard, redirigirRaiz } from './core/auth/auth.guard';
 import { AuthLayout } from './core/layout/auth-layout/auth-layout';
 
 /*
@@ -14,7 +14,7 @@ export const routes: Routes = [
     // el layout es el "marco" de las rutas hijas; carga diferida porque arrastra toolbar/sidenav/list de Material
     loadComponent: () => import('./core/layout/main-layout/main-layout').then((m) => m.MainLayout),
     children: [
-      { path: '', pathMatch: 'full', redirectTo: 'agenda' },
+      { path: '', pathMatch: 'full', redirectTo: redirigirRaiz },
       {
         path: '',
         canActivate: [authGuard],

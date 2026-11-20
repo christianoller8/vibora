@@ -3,7 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, Router, convertToParamMap, provideRouter } from '@angular/router';
 import { Subject, of, throwError } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
-import { USUARIO_JUGADOR, crearAuthFalso } from '../../../testing/test-utils';
+import { USUARIO_ADMIN, USUARIO_JUGADOR, crearAuthFalso } from '../../../testing/test-utils';
 import { Login } from './login';
 
 describe('Login', () => {
@@ -157,6 +157,58 @@ describe('Login', () => {
 
     expect(auth.login).toHaveBeenCalledWith('ana@vibora.es', 'secreto123');
     expect(navegar).toHaveBeenCalledWith('/agenda');
+  });
+
+  describe('aterrizaje del administrador del club', () => {
+    it('sin redirectTo entra en /panel', async () => {
+      await crear();
+      auth.login.mockReturnValue(of(USUARIO_ADMIN));
+      await rellenar('marta@vibora.es', 'secreto123');
+
+      await enviar();
+
+      expect(navegar).toHaveBeenCalledWith('/panel');
+    });
+
+    it('con redirectTo=/agenda (el destino por defecto, no un enlace profundo) también entra en /panel', async () => {
+      await crear({ redirectTo: '/agenda' });
+      auth.login.mockReturnValue(of(USUARIO_ADMIN));
+      await rellenar('marta@vibora.es', 'secreto123');
+
+      await enviar();
+
+      expect(navegar).toHaveBeenCalledWith('/panel');
+    });
+
+    it('conserva un redirectTo que sí es un enlace profundo', async () => {
+      await crear({ redirectTo: '/club' });
+      auth.login.mockReturnValue(of(USUARIO_ADMIN));
+      await rellenar('marta@vibora.es', 'secreto123');
+
+      await enviar();
+
+      expect(navegar).toHaveBeenCalledWith('/club');
+    });
+
+    it('un jugador con redirectTo=/agenda sigue en /agenda', async () => {
+      await crear({ redirectTo: '/agenda' });
+      auth.login.mockReturnValue(of(USUARIO_JUGADOR));
+      await rellenar('ana@vibora.es', 'secreto123');
+
+      await enviar();
+
+      expect(navegar).toHaveBeenCalledWith('/agenda');
+    });
+
+    it('un monitor sin redirectTo entra en /agenda', async () => {
+      await crear();
+      auth.login.mockReturnValue(of({ ...USUARIO_ADMIN, rol: 'MONITOR' as const }));
+      await rellenar('mon@vibora.es', 'secreto123');
+
+      await enviar();
+
+      expect(navegar).toHaveBeenCalledWith('/agenda');
+    });
   });
 
   it('respeta redirectTo cuando es una ruta interna', async () => {

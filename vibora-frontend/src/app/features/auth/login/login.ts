@@ -7,7 +7,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/auth/auth.service';
 import { mensajeDeError } from '../../../core/http/error.util';
 import { enfocarPrimerInvalido } from '../../../shared/forms/enfocar-invalido';
-import { destinoSeguro } from '../redirect.util';
+import { destinoTrasLogin } from '../redirect.util';
 
 const MOTIVOS: ReadonlyMap<string, string> = new Map([
   [
@@ -59,8 +59,11 @@ export class Login {
 
     const { email, password } = this.form.getRawValue();
     this.auth.login(email.trim(), password).subscribe({
-      next: () => {
-        const destino = destinoSeguro(this.route.snapshot.queryParamMap.get('redirectTo'));
+      next: (usuario) => {
+        const destino = destinoTrasLogin(
+          this.route.snapshot.queryParamMap.get('redirectTo'),
+          usuario.rol,
+        );
         void this.router.navigateByUrl(destino);
       },
       error: (err: unknown) => {

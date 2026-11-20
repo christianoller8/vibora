@@ -52,6 +52,14 @@ describe('rutas de la aplicación', () => {
     expect(await navegar('/', true)).toBe('/agenda');
   });
 
+  it('la raíz con el administrador del club acaba en /panel', async () => {
+    expect(await navegar('/', true, USUARIO_ADMIN)).toBe('/panel');
+  });
+
+  it('la raíz con un jugador acaba en /agenda', async () => {
+    expect(await navegar('/', true, USUARIO_JUGADOR)).toBe('/agenda');
+  });
+
   it('/panel sin sesión va a /login conservando redirectTo', async () => {
     expect(await navegar('/panel', false)).toBe('/login?redirectTo=%2Fpanel');
   });
