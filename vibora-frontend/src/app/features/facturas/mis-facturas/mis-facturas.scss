@@ -1,0 +1,77 @@
+h1 {
+  margin: 0 0 1.5rem;
+  font: var(--mat-sys-headline-medium);
+}
+
+.facturas {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.factura {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: var(--mat-sys-corner-medium);
+
+  &.rectificativa {
+    border-color: var(--mat-sys-error);
+  }
+
+  .datos {
+    display: flex;
+    flex: 1 1 14rem;
+    flex-direction: column;
+  }
+
+  .numero {
+    font: var(--mat-sys-title-medium);
+  }
+
+  .club,
+  .concepto,
+  .fecha {
+    color: var(--mat-sys-on-surface-variant);
+  }
+
+  .total {
+    font-weight: 500;
+    white-space: nowrap;
+  }
+}
+
+.tipo {
+  padding: 0.125rem 0.75rem;
+  border-radius: 999px;
+  background: var(--mat-sys-primary-container);
+  color: var(--mat-sys-on-primary-container);
+  font: var(--mat-sys-label-large);
+
+  &.tipo-rectificativa {
+    background: var(--mat-sys-error);
+    color: var(--mat-sys-on-error);
+  }
+}
+
+.paginacion {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.vacio {
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.error {
+  color: var(--mat-sys-error);
+}

@@ -130,7 +130,7 @@ describe('TiempoRealService', () => {
       ['INCIDENCIA_ASIGNADA', '/incidencias'],
       ['INCIDENCIA_ESTADO', '/incidencias'],
       ['INCIDENCIA_COMENTARIO', '/incidencias'],
-      ['FACTURA_RECTIFICATIVA', '/agenda'],
+      ['FACTURA_RECTIFICATIVA', '/facturas'],
       ['INVITACION_RECIBIDA', '/invitaciones'],
       ['INVITACION_ACEPTADA', '/club'],
       ['INVITACION_RECHAZADA', '/club'],

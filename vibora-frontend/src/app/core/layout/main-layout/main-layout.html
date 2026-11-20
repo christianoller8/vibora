@@ -24,6 +24,10 @@
           <mat-icon matListItemIcon>payments</mat-icon>
           <span matListItemTitle>Deudas</span>
         </a>
+        <a mat-list-item routerLink="/facturas" routerLinkActive="activo" (click)="alNavegar()">
+          <mat-icon matListItemIcon>receipt_long</mat-icon>
+          <span matListItemTitle>Mis facturas</span>
+        </a>
         <a mat-list-item routerLink="/incidencias" routerLinkActive="activo" (click)="alNavegar()">
           <mat-icon matListItemIcon>report_problem</mat-icon>
           <span matListItemTitle>Incidencias</span>

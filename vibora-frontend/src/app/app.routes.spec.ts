@@ -68,6 +68,17 @@ describe('rutas de la aplicación', () => {
     expect(await navegar('/deudas', false)).toBe('/login?redirectTo=%2Fdeudas');
   });
 
+  it('/facturas sin sesión va a /login conservando redirectTo', async () => {
+    expect(await navegar('/facturas', false)).toBe('/login?redirectTo=%2Ffacturas');
+  });
+
+  it.each([USUARIO_JUGADOR, USUARIO_ADMIN])(
+    '/facturas con sesión se queda en /facturas (cualquier rol: %#)',
+    async (usuario) => {
+      expect(await navegar('/facturas', true, usuario)).toBe('/facturas');
+    },
+  );
+
   it('/partidos con sesión se queda en /partidos', async () => {
     expect(await navegar('/partidos', true)).toBe('/partidos');
   });

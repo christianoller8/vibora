@@ -52,8 +52,8 @@ describe('destinoNotificacion', () => {
     },
   );
 
-  it('FACTURA_RECTIFICATIVA lleva a /agenda hasta que exista la pantalla de facturas', () => {
-    expect(destinoNotificacion('FACTURA_RECTIFICATIVA')).toBe('/agenda');
+  it('FACTURA_RECTIFICATIVA lleva a la pantalla "Mis facturas"', () => {
+    expect(destinoNotificacion('FACTURA_RECTIFICATIVA')).toBe('/facturas');
   });
 
   it.each(TODOS_LOS_TIPOS)('%s resuelve a una ruta no vacía', (tipo) => {

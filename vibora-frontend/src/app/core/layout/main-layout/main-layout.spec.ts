@@ -90,6 +90,29 @@ describe('MainLayout', () => {
     expect(enlaces.some((t) => t?.includes('Mis reservas'))).toBe(true);
   });
 
+  it.each([
+    ['jugador sin club', USUARIO_JUGADOR],
+    ['administrador de club', USUARIO_ADMIN],
+    ['monitor', { ...USUARIO_JUGADOR, rol: 'MONITOR' as const, clubId: 5, clubNombre: 'Club' }],
+  ])(
+    'muestra "Mis facturas" (receipt_long, /facturas) a todo usuario autenticado: %s',
+    async (_, usuario) => {
+      await crear(crearAuthFalso(usuario));
+
+      const enlace = Array.from(el().querySelectorAll<HTMLAnchorElement>('a[mat-list-item]')).find(
+        (a) => a.getAttribute('href') === '/facturas',
+      );
+      expect(enlace?.textContent).toContain('Mis facturas');
+      expect(enlace?.querySelector('mat-icon')?.textContent?.trim()).toBe('receipt_long');
+    },
+  );
+
+  it('sin sesión no hay menú, y por tanto tampoco "Mis facturas"', async () => {
+    await crear(crearAuthFalso(null));
+
+    expect(el().querySelector('a[href="/facturas"]')).toBeNull();
+  });
+
   it('muestra Incidencias a todo usuario autenticado, también a un jugador sin club', async () => {
     await crear(crearAuthFalso(USUARIO_JUGADOR));
 
@@ -114,6 +137,7 @@ describe('MainLayout', () => {
       '/mis-reservas',
       '/partidos',
       '/deudas',
+      '/facturas',
       '/incidencias',
       '/invitaciones',
       '/club/crear',

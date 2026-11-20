@@ -1,0 +1,69 @@
+<h1>Mis facturas</h1>
+
+@if (cargando()) {
+  <mat-spinner diameter="40" aria-label="Cargando tus facturas" />
+} @else if (error(); as mensaje) {
+  <p class="error" role="alert">{{ mensaje }}</p>
+  <button mat-stroked-button type="button" data-accion="reintentar" (click)="cargar()">
+    Reintentar
+  </button>
+} @else {
+  @if (facturas().length === 0) {
+    @if (pagina() === 0) {
+      <p class="vacio">Todavía no tienes facturas. Puedes pedirlas desde Mis reservas.</p>
+    } @else {
+      <p class="vacio">No hay más facturas.</p>
+    }
+  } @else {
+    <ul class="facturas" aria-label="Mis facturas">
+      @for (factura of facturas(); track factura.id) {
+        <li class="factura" [class.rectificativa]="esRectificativa(factura)">
+          <div class="datos">
+            <span class="numero">{{ factura.numeroCompleto }}</span>
+            <span class="club">{{ factura.emisor.razonSocial }}</span>
+            <span class="concepto">{{ factura.concepto }}</span>
+            <span class="fecha">{{ formatearFechaHora(factura.emitidaEn) }}</span>
+          </div>
+          <span class="tipo" [class.tipo-rectificativa]="esRectificativa(factura)">{{
+            esRectificativa(factura) ? 'Rectificativa' : 'Factura'
+          }}</span>
+          <span class="total">{{ formatearImporte(factura.total) }}</span>
+          <button
+            mat-stroked-button
+            type="button"
+            data-accion="descargar"
+            [attr.aria-label]="'Descargar el PDF de la factura ' + factura.numeroCompleto"
+            [disabled]="descargando() !== null"
+            (click)="descargar(factura)"
+          >
+            Descargar PDF
+          </button>
+        </li>
+      }
+    </ul>
+  }
+
+  @if (pagina() > 0 || hayMas()) {
+    <nav class="paginacion" data-testid="paginacion" aria-label="Paginación de mis facturas">
+      <button
+        mat-button
+        type="button"
+        data-accion="anterior"
+        [disabled]="pagina() === 0"
+        (click)="irA(pagina() - 1)"
+      >
+        Anterior
+      </button>
+      <span aria-live="polite">Página {{ pagina() + 1 }}</span>
+      <button
+        mat-button
+        type="button"
+        data-accion="siguiente"
+        [disabled]="!hayMas()"
+        (click)="irA(pagina() + 1)"
+      >
+        Siguiente
+      </button>
+    </nav>
+  }
+}

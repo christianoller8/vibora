@@ -28,9 +28,9 @@ export function destinoNotificacion(tipo: TipoNotificacion): string {
     case 'PERSONAL_ANADIDO':
     case 'PERSONAL_QUITADO':
       return '/agenda';
-    // Por ahora no hay pantalla de facturas: la de facturas tomará el relevo de este destino.
+    // La rectificativa que se emite al cancelar una reserva facturada aparece en "Mis facturas".
     case 'FACTURA_RECTIFICATIVA':
-      return '/agenda';
+      return '/facturas';
     case 'INVITACION_RECIBIDA':
       return '/invitaciones';
     // Lo ve el administrador del club; si quien lo abre no lo es, el guard de /club lo devuelve a la agenda.

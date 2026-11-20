@@ -33,6 +33,12 @@ export const routes: Routes = [
         loadChildren: () => import('./features/deudas/deudas.routes').then((m) => m.DEUDAS_ROUTES),
       },
       {
+        path: 'facturas',
+        canActivate: [authGuard],
+        loadChildren: () =>
+          import('./features/facturas/facturas.routes').then((m) => m.FACTURAS_ROUTES),
+      },
+      {
         path: 'incidencias',
         canActivate: [authGuard],
         loadChildren: () =>
