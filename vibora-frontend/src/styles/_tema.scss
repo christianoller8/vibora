@@ -1,0 +1,249 @@
+// Tema de Víbora: Material 3 sembrado con lima (#D4F25A), oscuro por defecto y claro como opción.
+//
+// ÚNICO sitio (junto a _theme-colors.scss, la paleta generada) donde se escriben colores. Los componentes usan
+// `var(--mat-sys-*)` o los tokens de aplicación de este archivo:
+//   --app-exito / --app-aviso / --app-info (+ `-contenedor`, `sobre-`)  estados semánticos
+//   --app-foco                                                         anillo de foco
+//   --viz-*                                                            series, escala de calor y chrome de los gráficos
+// Cada token está definido para los DOS temas.
+@use '@angular/material' as mat;
+@use 'theme-colors' as paletas;
+
+$fuente:
+  'Manrope Variable',
+  'Segoe UI',
+  system-ui,
+  -apple-system,
+  sans-serif;
+
+html {
+  height: 100%;
+  @include mat.theme(
+    (
+      color: (
+        primary: paletas.$primary-palette,
+        tertiary: paletas.$tertiary-palette,
+      ),
+      typography: (
+        plain-family: $fuente,
+        brand-family: $fuente,
+        bold-weight: 700,
+        medium-weight: 600,
+        regular-weight: 400,
+      ),
+      density: 0,
+    )
+  );
+}
+
+// Formas generosas: tarjetas a 16 px, diálogos y hojas más redondeados (los botones ya son píldora en M3).
+html {
+  @include mat.theme-overrides(
+    (
+      corner-small: 10px,
+      corner-medium: 16px,
+      corner-large: 20px,
+      corner-extra-large: 28px,
+    )
+  );
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// OSCURO (por defecto: sin atributo, o data-theme="dark")
+// ---------------------------------------------------------------------------------------------------------------
+html:not([data-theme='light']) {
+  color-scheme: dark;
+
+  @include mat.theme-overrides(
+    (
+      background: #0b0c0a,
+      on-background: #f2f3ee,
+      surface: #0b0c0a,
+      on-surface: #f2f3ee,
+      surface-variant: #23251f,
+      on-surface-variant: #a9ad9f,
+      surface-dim: #0b0c0a,
+      surface-bright: #33362d,
+      surface-container-lowest: #070806,
+      surface-container-low: #141511,
+      surface-container: #1b1d18,
+      surface-container-high: #23251f,
+      surface-container-highest: #2b2e26,
+      surface-tint: #d4f25a,
+      outline: #7b7f70,
+      outline-variant: #2e3129,
+      primary: #d4f25a,
+      on-primary: #1a2100,
+      primary-container: #2f3a00,
+      on-primary-container: #e0fe65,
+      secondary: #c3cb99,
+      on-secondary: #2d330f,
+      secondary-container: #363d1f,
+      on-secondary-container: #dfe7b3,
+      tertiary: #8ed4bf,
+      on-tertiary: #00382d,
+      tertiary-container: #005142,
+      on-tertiary-container: #aaf1db,
+      error: #ffb4ab,
+      on-error: #690005,
+      error-container: #93000a,
+      on-error-container: #ffdad6,
+      inverse-surface: #e8eadf,
+      inverse-on-surface: #1b1d18,
+      inverse-primary: #546500,
+      scrim: #000000,
+      shadow: #000000,
+    )
+  );
+
+  --app-foco: #d4f25a;
+
+  --app-exito: #7fd99a;
+  --app-sobre-exito: #06210f;
+  --app-exito-contenedor: #12391f;
+  --app-sobre-exito-contenedor: #b5f0c4;
+  --app-aviso: #f5b84a;
+  --app-sobre-aviso: #3a2600;
+  --app-aviso-contenedor: #4a3300;
+  --app-sobre-aviso-contenedor: #ffe0a3;
+  --app-info: #7db9f5;
+  --app-sobre-info: #00263f;
+  --app-info-contenedor: #0f3552;
+  --app-sobre-info-contenedor: #cbe6ff;
+
+  // Gráficos: series de la paleta de datos validada (azul y naranja: ranuras 1 y 2, pasos oscuros) y escala de calor
+  // de un solo tono (más claro = más actividad sobre fondo oscuro).
+  --viz-serie-1: #3987e5;
+  --viz-serie-2: #d95926;
+  --viz-calor-0: #0d366b;
+  --viz-calor-1: #184f95;
+  --viz-calor-2: #256abf;
+  --viz-calor-3: #6da7ec;
+  --viz-calor-4: #cde2fb;
+  --viz-calor-texto-0: #ffffff;
+  --viz-calor-texto-1: #ffffff;
+  --viz-calor-texto-2: #ffffff;
+  --viz-calor-texto-3: #0b0b0b;
+  --viz-calor-texto-4: #0b0b0b;
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// CLARO (data-theme="light"): la misma semilla lima; el primario pasa a un oliva oscuro porque la lima sobre blanco
+// no tiene contraste de texto.
+// ---------------------------------------------------------------------------------------------------------------
+html[data-theme='light'] {
+  color-scheme: light;
+
+  @include mat.theme-overrides(
+    (
+      background: #fafbf3,
+      on-background: #1a1d12,
+      surface: #fafbf3,
+      on-surface: #1a1d12,
+      surface-variant: #e1e4d2,
+      on-surface-variant: #45483c,
+      surface-dim: #dadccd,
+      surface-bright: #fafbf3,
+      surface-container-lowest: #ffffff,
+      surface-container-low: #ffffff,
+      surface-container: #eef0e4,
+      surface-container-high: #e8eadd,
+      surface-container-highest: #e2e4d7,
+      surface-tint: #546500,
+      outline: #75796a,
+      outline-variant: #c5c8b7,
+      primary: #546500,
+      on-primary: #ffffff,
+      primary-container: #d2ef58,
+      on-primary-container: #181e00,
+      secondary: #5b6239,
+      on-secondary: #ffffff,
+      secondary-container: #dfe7b3,
+      on-secondary-container: #181e00,
+      tertiary: #206a59,
+      on-tertiary: #ffffff,
+      tertiary-container: #aaf1db,
+      on-tertiary-container: #002019,
+      error: #ba1a1a,
+      on-error: #ffffff,
+      error-container: #ffdad6,
+      on-error-container: #410002,
+      inverse-surface: #2e3226,
+      inverse-on-surface: #f0f2e1,
+      inverse-primary: #b6d33e,
+      scrim: #000000,
+      shadow: #000000,
+    )
+  );
+
+  --app-foco: #546500;
+
+  --app-exito: #1e6b34;
+  --app-sobre-exito: #ffffff;
+  --app-exito-contenedor: #c3f0ce;
+  --app-sobre-exito-contenedor: #002110;
+  --app-aviso: #7a4b00;
+  --app-sobre-aviso: #ffffff;
+  --app-aviso-contenedor: #ffddaa;
+  --app-sobre-aviso-contenedor: #2a1800;
+  --app-info: #1f5f9a;
+  --app-sobre-info: #ffffff;
+  --app-info-contenedor: #d1e7ff;
+  --app-sobre-info-contenedor: #001d36;
+
+  --viz-serie-1: #2a78d6;
+  --viz-serie-2: #eb6834;
+  --viz-calor-0: #cde2fb;
+  --viz-calor-1: #86b6ef;
+  --viz-calor-2: #256abf;
+  --viz-calor-3: #184f95;
+  --viz-calor-4: #0d366b;
+  --viz-calor-texto-0: #0b0b0b;
+  --viz-calor-texto-1: #0b0b0b;
+  --viz-calor-texto-2: #ffffff;
+  --viz-calor-texto-3: #ffffff;
+  --viz-calor-texto-4: #ffffff;
+}
+
+// Chrome de los gráficos en ambos temas, derivado de los tokens de Material (el gráfico los lee en tiempo de ejecución).
+html {
+  --viz-texto: var(--mat-sys-on-surface-variant);
+  --viz-rejilla: var(--mat-sys-outline-variant);
+  --viz-eje: var(--mat-sys-outline-variant);
+  --viz-superficie: var(--mat-sys-surface-container-low);
+  // Tooltip como el de M3 (superficie inversa): claro sobre la tarjeta oscura y oscuro sobre la clara, con el contraste
+  // que ya garantizan los pares inverse-surface / inverse-on-surface de cada tema.
+  --viz-tooltip-fondo: var(--mat-sys-inverse-surface);
+  --viz-tooltip-texto: var(--mat-sys-inverse-on-surface);
+  --viz-tooltip-borde: var(--mat-sys-outline);
+}
+
+body {
+  margin: 0;
+  height: 100%;
+  background-color: var(--mat-sys-surface);
+  color: var(--mat-sys-on-surface);
+  font: var(--mat-sys-body-medium);
+}
+
+// Enlaces de texto con el color de acento del tema (especificidad cero: los componentes de Material mandan sobre esto).
+:where(a) {
+  color: var(--mat-sys-primary);
+}
+
+// Foco visible y consistente en todo lo nativo. Los controles de Material (clases mat-* / mdc-*) dibujan su propio
+// indicador (--mat-focus-indicator-*, el contorno del campo, la capa de estado): excluirlos evita un segundo anillo.
+:focus-visible:not([class^='mat-'], [class*=' mat-'], [class^='mdc-'], [class*=' mdc-']) {
+  outline: 2px solid var(--app-foco);
+  outline-offset: 2px;
+}
+
+// Material solo pinta su indicador de foco (el anillo de 3 px) con los indicadores fuertes activados; sin ellos los
+// botones rellenos solo cambian la capa de estado, que no llega a 3:1 (la lima sobre la lima). Mismo color que el anillo nativo.
+html {
+  @include mat.strong-focus-indicators(
+    (
+      border-color: var(--app-foco),
+    )
+  );
+}

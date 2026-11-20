@@ -1,45 +1,10 @@
 /*
- * Colores de datos del panel como variables CSS: el gráfico las lee en tiempo de ejecución (getComputedStyle), así que un
- * tema oscuro solo tiene que redefinirlas. Las series y la escala de calor son de la paleta de datos validada (azul y
- * naranja: ranuras 1 y 2); el texto, la rejilla y la superficie salen de los tokens de Material.
+ * Los colores de datos del panel (--viz-*: series, escala de calor, texto y rejilla) están definidos para los dos temas en
+ * styles/_tema.scss; el gráfico los lee en tiempo de ejecución (getComputedStyle).
  */
 :host {
   display: block;
   min-width: 0;
-
-  --viz-serie-1: #2a78d6;
-  --viz-serie-2: #eb6834;
-  --viz-texto: var(--mat-sys-on-surface-variant, #52514e);
-  --viz-rejilla: var(--mat-sys-outline-variant, #e1e0d9);
-  --viz-eje: var(--mat-sys-outline-variant, #c3c2b7);
-  --viz-superficie: var(--mat-sys-surface-container-low, var(--mat-sys-surface, #fcfcfb));
-  /* escala secuencial de un solo tono, de claro a oscuro */
-  --viz-calor-0: #cde2fb;
-  --viz-calor-1: #86b6ef;
-  --viz-calor-2: #2a78d6;
-  --viz-calor-3: #184f95;
-  --viz-calor-4: #0d366b;
-  --viz-calor-texto-0: #0b0b0b;
-  --viz-calor-texto-1: #0b0b0b;
-  --viz-calor-texto-2: #ffffff;
-  --viz-calor-texto-3: #ffffff;
-  --viz-calor-texto-4: #ffffff;
-}
-
-/* Tema oscuro (hoy la aplicación solo es clara: se activa con data-theme="dark" en <html>): pasos propios para esa superficie */
-:root[data-theme='dark'] :host {
-  --viz-serie-1: #3987e5;
-  --viz-serie-2: #d95926;
-  --viz-calor-0: #0d366b;
-  --viz-calor-1: #184f95;
-  --viz-calor-2: #2a78d6;
-  --viz-calor-3: #6da7ec;
-  --viz-calor-4: #cde2fb;
-  --viz-calor-texto-0: #ffffff;
-  --viz-calor-texto-1: #ffffff;
-  --viz-calor-texto-2: #ffffff;
-  --viz-calor-texto-3: #0b0b0b;
-  --viz-calor-texto-4: #0b0b0b;
 }
 
 h1 {
