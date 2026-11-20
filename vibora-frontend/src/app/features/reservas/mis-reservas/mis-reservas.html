@@ -41,6 +41,22 @@
             }
           </div>
         }
+        <button
+          mat-stroked-button
+          type="button"
+          data-accion="factura"
+          [attr.aria-label]="
+            'Factura de la reserva en ' +
+            reserva.pistaNombre +
+            ', ' +
+            formatearFecha(reserva.inicio) +
+            ', ' +
+            formatearRango(reserva.inicio, reserva.fin)
+          "
+          (click)="abrirFactura(reserva)"
+        >
+          Factura
+        </button>
         @if (puedeCancelar(reserva)) {
           <button
             mat-stroked-button

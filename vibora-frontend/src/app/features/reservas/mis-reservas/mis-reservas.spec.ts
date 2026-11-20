@@ -1,4 +1,5 @@
-import { HttpErrorResponse } from '@angular/common/http';
+import { HttpErrorResponse, provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -9,6 +10,7 @@ import { Notificacion, TipoNotificacion } from '../../../shared/models/notificac
 import { Reserva } from '../../../shared/models/reserva.model';
 import { crearAuthFalso, crearNotificacion } from '../../../testing/test-utils';
 import { PartidoService } from '../../partidos/partido.service';
+import { FacturaReservaDialog } from '../factura-reserva-dialog/factura-reserva-dialog';
 import { ReservaService } from '../reserva.service';
 import { MisReservas } from './mis-reservas';
 
@@ -56,6 +58,8 @@ describe('MisReservas', () => {
         { provide: PartidoService, useValue: partidos },
         { provide: MatDialog, useValue: dialogo },
         { provide: MatSnackBar, useValue: snack },
+        provideHttpClient(),
+        provideHttpClientTesting(),
       ],
     }).compileComponents();
     fixture = TestBed.createComponent(MisReservas);
@@ -129,6 +133,60 @@ describe('MisReservas', () => {
       await fixture.whenStable();
 
       expect(reservas.mias).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('factura', () => {
+    const botonFactura = (fila: HTMLElement): HTMLButtonElement | null =>
+      fila.querySelector('button[data-accion="factura"]');
+
+    it('cada reserva (todas son del organizador) tiene su botón "Factura" con nombre accesible', async () => {
+      await crear();
+
+      const etiquetas = filas().map((f) => botonFactura(f)?.getAttribute('aria-label'));
+      expect(etiquetas[0]).toContain('Factura de la reserva en Pista 1');
+      expect(etiquetas[1]).toContain('Factura de la reserva en Pista 2');
+      expect(etiquetas[2]).toContain('Factura de la reserva en Pista 3');
+      expect(botonFactura(filas()[0])!.textContent).toContain('Factura');
+    });
+
+    it('dos reservas de la misma pista se distinguen por su fecha y su hora (en hora de Madrid)', async () => {
+      const mismaPista = (id: number, inicio: string, fin: string): Reserva => ({
+        ...reserva(id, 'CONFIRMADA', 48 * HORA),
+        pistaNombre: 'Pista 1',
+        inicio,
+        fin,
+      });
+      reservas.mias.mockReturnValue(
+        of([
+          mismaPista(1, '2026-07-15T16:30:00Z', '2026-07-15T18:00:00Z'),
+          mismaPista(2, '2026-07-16T07:00:00Z', '2026-07-16T08:30:00Z'),
+        ]),
+      );
+      await crear();
+
+      expect(filas().map((f) => botonFactura(f)?.getAttribute('aria-label'))).toEqual([
+        'Factura de la reserva en Pista 1, miércoles, 15 de julio de 2026, 18:30 – 20:00',
+        'Factura de la reserva en Pista 1, jueves, 16 de julio de 2026, 09:00 – 10:30',
+      ]);
+    });
+
+    it('pulsarlo abre el diálogo de esa reserva', async () => {
+      await crear();
+
+      botonFactura(filas()[1])!.click();
+
+      expect(dialogo.open).toHaveBeenCalledTimes(1);
+      const [componente, config] = dialogo.open.mock.calls[0];
+      expect(componente).toBe(FacturaReservaDialog);
+      expect(config.data).toEqual({ reserva: PASADA });
+    });
+
+    it('no pide facturas de ninguna reserva al cargar la página (sin N+1)', async () => {
+      await crear();
+
+      const peticiones = TestBed.inject(HttpTestingController).match(() => true);
+      expect(peticiones).toHaveLength(0);
     });
   });
 
@@ -277,17 +335,18 @@ describe('MisReservas', () => {
 
       expect(boton().disabled).toBe(true);
       expect(aviso()).toBe('Solo se puede cancelar hasta el 15 de julio de 2026, 11:30');
-      expect(boton().getAttribute('aria-describedby')).toBe(
-        el().querySelector('.aviso-plazo')!.id,
-      );
+      expect(boton().getAttribute('aria-describedby')).toBe(el().querySelector('.aviso-plazo')!.id);
     });
 
-    it.each([null, undefined])('sin plazo conocido (%s) se mantiene el comportamiento de siempre', async (plazo) => {
-      await crearConReloj(conPlazo(plazo));
+    it.each([null, undefined])(
+      'sin plazo conocido (%s) se mantiene el comportamiento de siempre',
+      async (plazo) => {
+        await crearConReloj(conPlazo(plazo));
 
-      expect(boton().disabled).toBe(false);
-      expect(aviso()).toBe('');
-    });
+        expect(boton().disabled).toBe(false);
+        expect(aviso()).toBe('');
+      },
+    );
 
     it('el diálogo de cancelación muestra el plazo; si no se conoce, no añade la línea', async () => {
       dialogo.open.mockReturnValue({ afterClosed: () => of(false) });

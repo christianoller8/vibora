@@ -1,0 +1,109 @@
+<h2 mat-dialog-title>Factura de la reserva</h2>
+
+<mat-dialog-content>
+  <p class="resumen">
+    {{ reserva.clubNombre }} · {{ reserva.pistaNombre }}<br />
+    {{ formatearFechaLarga(reserva.inicio) }}, {{ formatearRango(reserva.inicio, reserva.fin) }}
+  </p>
+
+  @if (cargando()) {
+    <mat-spinner diameter="32" aria-label="Cargando las facturas" />
+  } @else if (errorCarga(); as mensaje) {
+    <p class="error" role="alert">{{ mensaje }}</p>
+    <button mat-stroked-button type="button" data-accion="reintentar" (click)="cargar()">
+      Reintentar
+    </button>
+  } @else if (facturas(); as lista) {
+    @if (lista.length > 0) {
+      <ul class="facturas" aria-label="Facturas de la reserva">
+        @for (factura of lista; track factura.id) {
+          <li class="factura" [class.rectificativa]="esRectificativa(factura)">
+            <div class="datos">
+              <span class="numero">{{ factura.numeroCompleto }}</span>
+              <span class="detalle">
+                {{ esRectificativa(factura) ? 'Rectificativa' : 'Factura' }} ·
+                {{ formatearFechaHora(factura.emitidaEn) }}
+              </span>
+            </div>
+            <span class="importe">{{ formatearImporte(factura.total) }}</span>
+            <button
+              mat-stroked-button
+              type="button"
+              data-accion="descargar"
+              [attr.aria-label]="
+                esRectificativa(factura)
+                  ? 'Descargar la rectificativa ' + factura.numeroCompleto
+                  : 'Descargar la factura ' + factura.numeroCompleto
+              "
+              [disabled]="descargando() !== null"
+              (click)="descargar(factura)"
+            >
+              {{ esRectificativa(factura) ? 'Descargar rectificativa' : 'Descargar factura' }}
+            </button>
+          </li>
+        }
+      </ul>
+    } @else if (puedePedirla) {
+      <form [formGroup]="form" (ngSubmit)="pedir()" novalidate>
+        <p class="ayuda">
+          Si no indicas nada, la factura irá a tu nombre. Puedes poner otros datos de facturación
+          (por ejemplo los de tu empresa).
+        </p>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Nombre o razón social (opcional)</mat-label>
+          <input
+            matInput
+            type="text"
+            name="nombre"
+            formControlName="nombre"
+            autocomplete="off"
+            [attr.maxlength]="maxNombre"
+          />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>NIF / CIF / NIE (opcional)</mat-label>
+          <input
+            matInput
+            type="text"
+            name="nif"
+            formControlName="nif"
+            autocomplete="off"
+            autocapitalize="characters"
+            [attr.maxlength]="maxNif"
+          />
+          <mat-error>El NIF/CIF no es válido</mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Dirección (opcional)</mat-label>
+          <input
+            matInput
+            type="text"
+            name="direccion"
+            formControlName="direccion"
+            autocomplete="off"
+            [attr.maxlength]="maxDireccion"
+          />
+        </mat-form-field>
+
+        @if (errorEmision(); as mensaje) {
+          <p class="error" role="alert">{{ mensaje }}</p>
+        }
+
+        <div class="acciones-form">
+          <button mat-flat-button type="submit" [disabled]="emitiendo()">
+            {{ emitiendo() ? 'Pidiendo…' : 'Pedir factura' }}
+          </button>
+        </div>
+      </form>
+    } @else {
+      <p class="vacio">Esta reserva no tiene facturas.</p>
+    }
+  }
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button type="button" data-accion="cerrar" (click)="cerrar()">Cerrar</button>
+</mat-dialog-actions>

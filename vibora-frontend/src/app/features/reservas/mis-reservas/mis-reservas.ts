@@ -23,6 +23,10 @@ import {
 import { TipoNotificacion } from '../../../shared/models/notificacion.model';
 import { EstadoReserva, Reserva } from '../../../shared/models/reserva.model';
 import { PartidoService } from '../../partidos/partido.service';
+import {
+  FacturaReservaDialog,
+  FacturaReservaDialogData,
+} from '../factura-reserva-dialog/factura-reserva-dialog';
 import { ReservaService } from '../reserva.service';
 
 const JUGADORES_POR_PARTIDO = 4;
@@ -241,6 +245,16 @@ export class MisReservas {
           { duration: 6000 },
         );
       },
+    });
+  }
+
+  /**
+   * Todas las reservas de esta lista son del usuario como organizador (`/api/reservas/mias`), que es quien puede pedir y
+   * descargar la factura. Las facturas de la reserva se piden al abrir el diálogo, no al cargar la página.
+   */
+  protected abrirFactura(reserva: Reserva): void {
+    this.dialog.open<FacturaReservaDialog, FacturaReservaDialogData>(FacturaReservaDialog, {
+      data: { reserva },
     });
   }
 
