@@ -3,6 +3,7 @@ import { MatTabsModule } from '@angular/material/tabs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { BloqueosClub } from '../bloqueos-club/bloqueos-club';
 import { DatosClub } from '../datos-club/datos-club';
+import { FacturacionClub } from '../facturacion-club/facturacion-club';
 import { PersonalClub } from '../personal-club/personal-club';
 import { PistasClub } from '../pistas-club/pistas-club';
 import { ReservasClub } from '../reservas-club/reservas-club';
@@ -19,6 +20,7 @@ import { TarifasClub } from '../tarifas-club/tarifas-club';
     ReservasClub,
     PersonalClub,
     BloqueosClub,
+    FacturacionClub,
   ],
   templateUrl: './club-admin.html',
   styleUrl: './club-admin.scss',

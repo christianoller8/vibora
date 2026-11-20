@@ -1,0 +1,32 @@
+:host {
+  display: block;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-width: 32rem;
+}
+
+.iva {
+  max-width: 12rem;
+}
+
+.acciones {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.aviso {
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--mat-sys-corner-medium);
+  background: var(--mat-sys-tertiary-container);
+  color: var(--mat-sys-on-tertiary-container);
+}
+
+.error {
+  margin: 0 0 0.5rem;
+  color: var(--mat-sys-error);
+}

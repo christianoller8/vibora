@@ -3,6 +3,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { NEVER, Subject, of } from 'rxjs';
 import { ClubService } from '../../../core/api/club.service';
+import { FacturaService } from '../../../core/api/factura.service';
 import { AuthService } from '../../../core/auth/auth.service';
 import { NotificacionesStore } from '../../../core/notificaciones/notificaciones.store';
 import { Notificacion } from '../../../shared/models/notificacion.model';
@@ -16,7 +17,14 @@ import { ClubAdmin } from './club-admin';
 
 describe('ClubAdmin', () => {
   let fixture: ComponentFixture<ClubAdmin>;
-  const clubes = { obtener: vi.fn(), actualizar: vi.fn(), pistas: vi.fn() };
+  const clubes = {
+    obtener: vi.fn(),
+    actualizar: vi.fn(),
+    pistas: vi.fn(),
+    datosFiscales: vi.fn(),
+    actualizarDatosFiscales: vi.fn(),
+  };
+  const facturas = { delClub: vi.fn(), pdf: vi.fn() };
   const tarifas = { listar: vi.fn() };
   const reservas = { delClub: vi.fn(), cancelar: vi.fn() };
   const personal = { listar: vi.fn(), quitar: vi.fn() };
@@ -33,6 +41,7 @@ describe('ClubAdmin', () => {
         { provide: ReservaService, useValue: reservas },
         { provide: PersonalService, useValue: personal },
         { provide: BloqueoService, useValue: bloqueos },
+        { provide: FacturaService, useValue: facturas },
         { provide: NotificacionesStore, useValue: { recibidas$: new Subject<Notificacion>() } },
         { provide: MatDialog, useValue: { open: vi.fn() } },
         { provide: MatSnackBar, useValue: { open: vi.fn() } },
@@ -63,9 +72,11 @@ describe('ClubAdmin', () => {
     reservas.delClub.mockReturnValue(NEVER);
     personal.listar.mockReturnValue(NEVER);
     bloqueos.listar.mockReturnValue(NEVER);
+    clubes.datosFiscales.mockReturnValue(NEVER);
+    facturas.delClub.mockReturnValue(NEVER);
   });
 
-  it('muestra el nombre del club y las seis pestañas en orden', async () => {
+  it('muestra el nombre del club y las siete pestañas en orden', async () => {
     await crear();
 
     expect(el().querySelector('h1')?.textContent).toContain('Mi club');
@@ -77,7 +88,27 @@ describe('ClubAdmin', () => {
       'Reservas',
       'Personal',
       'Bloqueos',
+      'Facturación',
     ]);
+  });
+
+  it('"Facturación" carga los datos fiscales y las facturas del club al abrirla y no antes', async () => {
+    await crear();
+    expect(clubes.datosFiscales).not.toHaveBeenCalled();
+    expect(facturas.delClub).not.toHaveBeenCalled();
+
+    pestanas()[6].click();
+    await fixture.whenStable();
+
+    expect(clubes.datosFiscales).toHaveBeenCalledWith(5);
+    expect(facturas.delClub.mock.calls[0][0]).toBe(5);
+    expect(el().querySelector('app-facturacion-club')).not.toBeNull();
+    expect(el().querySelector('app-datos-fiscales-club')).not.toBeNull();
+    expect(el().querySelector('app-facturas-club')).not.toBeNull();
+    const titulos = Array.from(el().querySelectorAll('app-facturacion-club h2')).map((h) =>
+      h.textContent!.trim(),
+    );
+    expect(titulos).toEqual(['Datos fiscales', 'Facturas del club']);
   });
 
   it('"Personal" carga el personal del club al abrirla y no antes', async () => {

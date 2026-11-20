@@ -1,0 +1,103 @@
+@if (cargando()) {
+  <mat-spinner diameter="40" aria-label="Cargando los datos fiscales" />
+} @else if (errorCarga(); as mensaje) {
+  <p class="error" role="alert">{{ mensaje }}</p>
+  <button mat-stroked-button type="button" data-accion="reintentar" (click)="cargar()">
+    Reintentar
+  </button>
+} @else {
+  @if (!configurado()) {
+    <p class="aviso" role="status">
+      Aún no has configurado los datos fiscales: sin ellos no se pueden emitir facturas.
+    </p>
+  }
+
+  <form [formGroup]="form" (ngSubmit)="guardar()" novalidate>
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>Razón social</mat-label>
+      <input
+        matInput
+        type="text"
+        name="razonSocial"
+        formControlName="razonSocial"
+        autocomplete="organization"
+        required
+      />
+      @if (form.controls.razonSocial.hasError('required')) {
+        <mat-error>La razón social es obligatoria</mat-error>
+      } @else {
+        <mat-error>La razón social es demasiado larga</mat-error>
+      }
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>NIF / CIF / NIE</mat-label>
+      <input
+        matInput
+        type="text"
+        name="nif"
+        formControlName="nif"
+        autocomplete="off"
+        autocapitalize="characters"
+        required
+      />
+      <mat-hint>Por ejemplo 12345678Z, X1234567L o B12345674</mat-hint>
+      @if (form.controls.nif.hasError('required')) {
+        <mat-error>El NIF/CIF es obligatorio</mat-error>
+      } @else if (form.controls.nif.hasError('maxlength')) {
+        <mat-error>El NIF/CIF es demasiado largo</mat-error>
+      } @else {
+        <mat-error>El NIF/CIF no es válido</mat-error>
+      }
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>Dirección fiscal</mat-label>
+      <input
+        matInput
+        type="text"
+        name="direccionFiscal"
+        formControlName="direccionFiscal"
+        autocomplete="street-address"
+        required
+      />
+      @if (form.controls.direccionFiscal.hasError('required')) {
+        <mat-error>La dirección fiscal es obligatoria</mat-error>
+      } @else {
+        <mat-error>La dirección fiscal es demasiado larga</mat-error>
+      }
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="iva">
+      <mat-label>Tipo de IVA (%)</mat-label>
+      <input
+        matInput
+        type="number"
+        name="tipoIva"
+        formControlName="tipoIva"
+        inputmode="decimal"
+        min="0"
+        max="99.99"
+        step="0.01"
+        required
+      />
+      @if (form.controls.tipoIva.hasError('required')) {
+        <mat-error>El tipo de IVA es obligatorio</mat-error>
+      } @else if (form.controls.tipoIva.hasError('decimales')) {
+        <mat-error>El IVA admite como máximo dos decimales</mat-error>
+      } @else {
+        <mat-error>El IVA debe estar entre 0 y 99,99</mat-error>
+      }
+    </mat-form-field>
+
+    @if (errorGuardado(); as mensaje) {
+      <p class="error" role="alert">{{ mensaje }}</p>
+    }
+
+    <div class="acciones">
+      <button mat-flat-button type="submit" [disabled]="guardando()">
+        {{ guardando() ? 'Guardando…' : 'Guardar datos fiscales' }}
+      </button>
+    </div>
+  </form>
+}

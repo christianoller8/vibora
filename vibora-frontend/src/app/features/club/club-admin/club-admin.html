@@ -44,6 +44,11 @@
         <app-bloqueos-club [clubId]="clubId" />
       </ng-template>
     </mat-tab>
+    <mat-tab label="Facturación">
+      <ng-template matTabContent>
+        <app-facturacion-club [clubId]="clubId" />
+      </ng-template>
+    </mat-tab>
   </mat-tab-group>
 } @else {
   <p class="error" role="alert">

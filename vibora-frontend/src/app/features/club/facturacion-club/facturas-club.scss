@@ -1,0 +1,134 @@
+@use '../../../shared/styles/tabla-apilada' as apilada;
+
+:host {
+  display: block;
+}
+
+@include apilada.tabla-apilada('tr.factura');
+
+.filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.tabla {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+}
+
+.importe {
+  text-align: end;
+  white-space: nowrap;
+}
+
+.total {
+  font-weight: 500;
+}
+
+.numero {
+  display: block;
+  font-weight: 500;
+}
+
+.rectifica {
+  display: block;
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-body-small);
+}
+
+.enlace {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--mat-sys-primary);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+tr.factura.rectificativa td {
+  background: var(--mat-sys-error-container);
+  color: var(--mat-sys-on-error-container);
+
+  .rectifica {
+    color: inherit;
+  }
+
+  .enlace {
+    color: inherit;
+  }
+}
+
+tr.factura:focus-visible {
+  outline: 2px solid var(--mat-sys-primary);
+  outline-offset: -2px;
+}
+
+mat-chip.tipo-rectificativa {
+  --mat-chip-elevated-container-color: var(--mat-sys-error);
+  --mat-chip-label-text-color: var(--mat-sys-on-error);
+}
+
+.acciones {
+  text-align: end;
+  white-space: nowrap;
+}
+
+.oculto {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.totales {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.5rem;
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--mat-sys-corner-medium);
+  background: var(--mat-sys-surface-container);
+
+  .total-cantidad,
+  .total-final {
+    font-weight: 500;
+  }
+}
+
+.paginacion {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.vacio {
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.error {
+  color: var(--mat-sys-error);
+}
+
+// En una tarjeta de 375 px la fila de totales y la cabecera de importes alineadas a la derecha estorban
+@media (max-width: 40rem) {
+  .importe {
+    text-align: start;
+  }
+
+  tr.factura.rectificativa {
+    background: var(--mat-sys-error-container);
+  }
+
+  .acciones {
+    text-align: start;
+  }
+}

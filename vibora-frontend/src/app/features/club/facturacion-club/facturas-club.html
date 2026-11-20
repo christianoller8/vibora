@@ -1,0 +1,192 @@
+<div class="filtros">
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Desde</mat-label>
+    <input
+      matInput
+      type="date"
+      name="desde"
+      [formControl]="desdeCtrl"
+      [attr.min]="fechaMinima"
+      [attr.max]="fechaMaxima"
+    />
+  </mat-form-field>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Hasta</mat-label>
+    <input
+      matInput
+      type="date"
+      name="hasta"
+      [formControl]="hastaCtrl"
+      [attr.min]="fechaMinima"
+      [attr.max]="fechaMaxima"
+    />
+  </mat-form-field>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Tipo</mat-label>
+    <select matNativeControl name="tipo" [formControl]="tipoCtrl">
+      <option value="">Todas</option>
+      <option value="ORIGINAL">Originales</option>
+      <option value="RECTIFICATIVA">Rectificativas</option>
+    </select>
+  </mat-form-field>
+</div>
+
+@if (avisoFiltro(); as aviso) {
+  <p class="error" role="alert">{{ aviso }}</p>
+}
+
+@if (cargando()) {
+  <mat-spinner diameter="40" aria-label="Cargando las facturas" />
+} @else if (avisoFiltro() !== null) {
+  <!-- filtro inválido: el aviso de arriba lo explica; no hay resultados que enseñar -->
+} @else if (error(); as mensaje) {
+  <p class="error" role="alert">{{ mensaje }}</p>
+  <button mat-stroked-button type="button" data-accion="reintentar" (click)="reintentar()">
+    Reintentar
+  </button>
+} @else if (facturas().length === 0) {
+  <p class="vacio">No hay facturas en este periodo.</p>
+} @else {
+  <div class="tabla">
+    <table mat-table [dataSource]="facturas()" aria-label="Facturas del club en el periodo elegido">
+      <ng-container matColumnDef="numero">
+        <th mat-header-cell *matHeaderCellDef>Número</th>
+        <td mat-cell *matCellDef="let factura" data-label="Número">
+          <span class="numero">{{ factura.numeroCompleto }}</span>
+          @if (esRectificativa(factura)) {
+            <mat-chip-set aria-label="Tipo de factura">
+              <mat-chip class="tipo-rectificativa">Rectificativa</mat-chip>
+            </mat-chip-set>
+            @if (numeroDeLaOriginal(factura); as original) {
+              <span class="rectifica">
+                Rectifica a
+                <button
+                  type="button"
+                  class="enlace"
+                  data-accion="ir-original"
+                  [attr.aria-label]="'Ir a la factura ' + original"
+                  (click)="irAOriginal(factura.rectificaA)"
+                >
+                  {{ original }}
+                </button>
+              </span>
+            } @else {
+              <span class="rectifica">Rectifica a otra factura</span>
+            }
+          }
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="emitida">
+        <th mat-header-cell *matHeaderCellDef>Emitida</th>
+        <td mat-cell *matCellDef="let factura" data-label="Emitida">
+          {{ formatearFechaHora(factura.emitidaEn) }}
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="receptor">
+        <th mat-header-cell *matHeaderCellDef>Receptor</th>
+        <td mat-cell *matCellDef="let factura" data-label="Receptor">
+          {{ factura.receptor.nombre }}
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="concepto">
+        <th mat-header-cell *matHeaderCellDef>Concepto</th>
+        <td mat-cell *matCellDef="let factura" data-label="Concepto">{{ factura.concepto }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="base">
+        <th mat-header-cell *matHeaderCellDef class="importe">Base</th>
+        <td mat-cell *matCellDef="let factura" data-label="Base" class="importe">
+          {{ formatearImporte(factura.base) }}
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="iva">
+        <th mat-header-cell *matHeaderCellDef class="importe">IVA</th>
+        <td mat-cell *matCellDef="let factura" data-label="IVA" class="importe">
+          {{ formatearPorcentaje(factura.tipoIva) }}
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="cuota">
+        <th mat-header-cell *matHeaderCellDef class="importe">Cuota</th>
+        <td mat-cell *matCellDef="let factura" data-label="Cuota" class="importe">
+          {{ formatearImporte(factura.cuotaIva) }}
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="total">
+        <th mat-header-cell *matHeaderCellDef class="importe">Total</th>
+        <td mat-cell *matCellDef="let factura" data-label="Total" class="importe total">
+          {{ formatearImporte(factura.total) }}
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="acciones">
+        <th mat-header-cell *matHeaderCellDef><span class="oculto">Acciones</span></th>
+        <td mat-cell *matCellDef="let factura" class="acciones">
+          <button
+            mat-stroked-button
+            type="button"
+            data-accion="descargar"
+            [attr.aria-label]="'Descargar el PDF de la factura ' + factura.numeroCompleto"
+            [disabled]="descargando() !== null"
+            (click)="descargar(factura)"
+          >
+            Descargar PDF
+          </button>
+        </td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="columnas"></tr>
+      <tr
+        mat-row
+        *matRowDef="let factura; columns: columnas"
+        class="factura"
+        tabindex="-1"
+        [id]="'factura-' + factura.id"
+        [class.rectificativa]="esRectificativa(factura)"
+      ></tr>
+    </table>
+  </div>
+
+  @if (totales(); as t) {
+    <div
+      class="totales"
+      data-testid="totales"
+      role="group"
+      aria-label="Totales del periodo filtrado"
+    >
+      <span class="total-cantidad">{{ textoCantidad(t.cantidad) }}</span>
+      <span>Base: {{ formatearImporte(t.base) }}</span>
+      <span>IVA: {{ formatearImporte(t.cuotaIva) }}</span>
+      <span class="total-final">Total: {{ formatearImporte(t.total) }}</span>
+    </div>
+  }
+
+  @if (totalPaginas() > 1) {
+    <nav class="paginacion" data-testid="paginacion" aria-label="Paginación de facturas">
+      <button
+        mat-button
+        type="button"
+        data-accion="anterior"
+        [disabled]="pagina() === 0"
+        (click)="irA(pagina() - 1)"
+      >
+        Anterior
+      </button>
+      <span aria-live="polite">Página {{ pagina() + 1 }} de {{ totalPaginas() }}</span>
+      <button
+        mat-button
+        type="button"
+        data-accion="siguiente"
+        [disabled]="pagina() + 1 >= totalPaginas()"
+        (click)="irA(pagina() + 1)"
+      >
+        Siguiente
+      </button>
+    </nav>
+  }
+}
