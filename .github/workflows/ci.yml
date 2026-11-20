@@ -67,6 +67,18 @@ jobs:
       - name: Tests (Vitest)
         run: npx ng test --watch=false
 
+      - name: Guardia de colores (sin colores literales fuera de los tokens)
+        run: npm run test:colores
+
+      - name: Guardia del tema inicial
+        run: npm run test:tema
+
+      - name: Guardia de la marca (iconos, theme-color y animacion del logo)
+        run: npm run test:marca
+
+      - name: Guardia de la CSP de produccion
+        run: npm run test:csp
+
       - name: Build de produccion
         run: npx ng build --configuration production
 
