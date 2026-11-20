@@ -68,7 +68,9 @@
     padding: 1rem;
   }
 
-  .usuario {
+  // la barra ya lleva el selector de tema y la campana: en móvil el nombre y el rol no caben sin desbordar los 375 px
+  .usuario,
+  .rol {
     display: none;
   }
 }

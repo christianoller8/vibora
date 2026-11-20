@@ -90,6 +90,7 @@
         <span class="usuario">{{ usuario.nombre || usuario.email }}</span>
         <span class="rol">{{ etiquetaRol[usuario.rol] }}</span>
       }
+      <app-selector-tema />
       @if (auth.estaAutenticado()) {
         <app-campana />
         @if (esPersonal()) {

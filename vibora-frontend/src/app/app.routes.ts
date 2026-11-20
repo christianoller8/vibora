@@ -1,6 +1,5 @@
 import { Routes } from '@angular/router';
 import { authGuard, redirigirRaiz } from './core/auth/auth.guard';
-import { AuthLayout } from './core/layout/auth-layout/auth-layout';
 
 /*
  * ORDEN IMPORTANTE: el layout con redirección de '' va primero. Una ruta de path '' con loadChildren
@@ -65,7 +64,8 @@ export const routes: Routes = [
   {
     // login y registro: marco limpio, sin menú lateral
     path: '',
-    component: AuthLayout,
+    // carga diferida: arrastra el selector de tema (botón e icono de Material), que no debe engordar el bundle inicial
+    loadComponent: () => import('./core/layout/auth-layout/auth-layout').then((m) => m.AuthLayout),
     loadChildren: () => import('./features/auth/auth.routes').then((m) => m.AUTH_ROUTES),
   },
   { path: '**', redirectTo: 'agenda' },

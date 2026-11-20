@@ -43,6 +43,19 @@ test('el resto de la politica sigue siendo estricta', () => {
   assert.ok(!construirPolitica(HTML).includes('*'));
 });
 
+test('un script externo de nuestro origen (tema-inicial.js) no necesita hash: script-src queda solo en self', () => {
+  const html =
+    '<html><head><script src="tema-inicial.js"></script><link rel="stylesheet" href="styles-ABCD1234.css"></head></html>';
+  assert.deepEqual(hashesDeScripts(html), []);
+  assert.deepEqual(directivas(construirPolitica(html)).get('script-src'), ["'self'"]);
+});
+
+test('las fuentes de texto son propias (font-src self); Google Fonts solo queda para los iconos', () => {
+  const d = directivas(construirPolitica(HTML));
+  assert.ok(d.get('font-src').includes("'self'"));
+  assert.deepEqual(d.get('font-src'), ["'self'", 'https://fonts.gstatic.com', 'data:']);
+});
+
 test('script-src lleva el hash SHA-256 de cada script en linea y nada mas', () => {
   const esperado = `'sha256-${createHash('sha256').update(SCRIPT).digest('base64')}'`;
   assert.deepEqual(hashesDeScripts(HTML), [esperado]);

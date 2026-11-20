@@ -80,6 +80,14 @@ describe('MainLayout', () => {
     expect(el().querySelector('mat-chip, .rol')?.textContent).toContain('Jugador');
   });
 
+  it('la barra superior lleva el selector de tema, con su etiqueta accesible', async () => {
+    await crear(crearAuthFalso());
+
+    const boton = el().querySelector('mat-toolbar button[data-accion="cambiar-tema"]');
+    expect(boton).not.toBeNull();
+    expect(boton?.getAttribute('aria-label')).toMatch(/^Cambiar a tema (claro|oscuro)$/);
+  });
+
   it('muestra las entradas Agenda y Mis reservas cuando hay sesión', async () => {
     await crear(crearAuthFalso());
 

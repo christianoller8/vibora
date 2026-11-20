@@ -17,7 +17,8 @@ export function construirPolitica(html) {
   return [
     "default-src 'self'",
     ["script-src 'self'", ...hashesDeScripts(html)].join(' '),
-    // Angular Material usa estilos en linea; las fuentes vienen de Google Fonts (index.html)
+    // Angular Material usa estilos en linea. El texto usa Manrope autoalojada ('self'); Google Fonts solo sirve la
+    // fuente de iconos (Material Symbols) enlazada en index.html. tema-inicial.js es un script de 'self': sin hash.
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com data:",
     // blob: para las fotos de incidencias: se descargan con HttpClient (JWT) y se muestran con URL.createObjectURL
