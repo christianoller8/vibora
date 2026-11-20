@@ -218,6 +218,16 @@ html {
   --viz-tooltip-borde: var(--mat-sys-outline);
 }
 
+// Panel de marca de login y registro: negro verdoso con lima en AMBOS temas (es un momento de marca, no una
+// superficie de la interfaz; la lima sobre casi negro es su mejor lectura y el tema claro no la cambia).
+html {
+  --marca-fondo: #10120d;
+  --marca-borde: #23251f;
+  --marca-texto: #f2f3ee;
+  --marca-texto-suave: #a9ad9f;
+  --marca-acento: #d4f25a;
+}
+
 body {
   margin: 0;
   height: 100%;

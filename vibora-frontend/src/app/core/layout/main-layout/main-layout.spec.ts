@@ -80,6 +80,20 @@ describe('MainLayout', () => {
     expect(el().querySelector('mat-chip, .rol')?.textContent).toContain('Jugador');
   });
 
+  it('la barra superior lleva el logo de Víbora (marca y nombre), sin animación', async () => {
+    await crear(crearAuthFalso());
+
+    const logo = el().querySelector('mat-toolbar app-logo') as HTMLElement | null;
+    expect(logo).not.toBeNull();
+    expect(logo?.getAttribute('role')).toBe('img');
+    expect(logo?.getAttribute('aria-label')).toBe('Víbora');
+    expect(logo?.querySelector('svg')).not.toBeNull();
+    expect(logo?.querySelector('.nombre')).not.toBeNull();
+    expect(logo?.classList.contains('animado')).toBe(false);
+    // el texto plano anterior ya no existe
+    expect(el().querySelector('mat-toolbar span.marca')).toBeNull();
+  });
+
   it('la barra superior lleva el selector de tema, con su etiqueta accesible', async () => {
     await crear(crearAuthFalso());
 

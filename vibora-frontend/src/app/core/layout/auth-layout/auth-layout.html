@@ -3,8 +3,46 @@
     <app-selector-tema />
   </div>
 
-  <div class="tarjeta">
-    <p class="marca">Víbora</p>
-    <router-outlet />
+  <div class="panel">
+    <!-- líneas de una pista de pádel (borde, red, líneas de saque, línea central, paredes de cristal y una bola): solo textura -->
+    <svg
+      class="textura"
+      viewBox="0 0 600 800"
+      preserveAspectRatio="xMidYMid slice"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <g transform="translate(340 380) rotate(-16) scale(2.9) translate(-60 -110)">
+        <g fill="none" stroke="currentColor" stroke-width="1.25">
+          <rect x="10" y="10" width="100" height="200" />
+          <path d="M10 40.5H110M10 179.5H110M60 40.5V179.5" />
+          <path class="red" d="M2 110H118" />
+          <rect class="cristal" x="4" y="4" width="112" height="212" rx="6" />
+          <path
+            class="juntas"
+            d="M4 30h6M4 50h6M4 70h6M4 90h6M4 130h6M4 150h6M4 170h6M4 190h6M110 30h6M110 50h6M110 70h6M110 90h6M110 130h6M110 150h6M110 170h6M110 190h6"
+          />
+          <path class="trayectoria" d="M34 188Q54 96 86 64" />
+        </g>
+        <circle class="bola" cx="86" cy="64" r="3.2" fill="currentColor" />
+      </g>
+    </svg>
+
+    <app-logo class="logo" [animado]="true" />
+
+    <div class="mensaje">
+      <p class="titular">
+        <span class="linea">Reserva. </span>
+        <span class="linea">Juega. </span>
+        <span class="linea acento">Repite.</span>
+      </p>
+      <p class="apoyo">Pistas, partidos y cuentas de tu club, en un solo sitio.</p>
+    </div>
   </div>
+
+  <section class="formulario">
+    <div class="tarjeta">
+      <router-outlet />
+    </div>
+  </section>
 </main>

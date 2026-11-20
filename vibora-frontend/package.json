@@ -9,6 +9,7 @@
     "test": "ng test",
     "test:csp": "node --test docker/csp.test.mjs",
     "test:tema": "node --test docker/tema-inicial.test.mjs",
+    "test:marca": "node --test docker/marca.test.mjs",
     "test:colores": "node --test scripts/colores.test.mjs"
   },
   "private": true,

@@ -21,6 +21,7 @@ import {
   ConfirmDialog,
   ConfirmDialogData,
 } from '../../../shared/components/confirm-dialog/confirm-dialog';
+import { Logo } from '../../../shared/components/logo/logo';
 import { SelectorTema } from '../../../shared/components/selector-tema/selector-tema';
 import { ETIQUETA_ROL } from '../../../shared/models/usuario.model';
 
@@ -37,6 +38,7 @@ import { ETIQUETA_ROL } from '../../../shared/models/usuario.model';
     MatButtonModule,
     MatBadgeModule,
     Campana,
+    Logo,
     SelectorTema,
   ],
   templateUrl: './main-layout.html',

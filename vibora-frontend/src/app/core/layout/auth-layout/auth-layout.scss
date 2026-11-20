@@ -1,33 +1,165 @@
+// Escritorio: dos mitades (panel de marca oscuro + formulario). Menos de 900 px: el panel se reduce a una cabecera
+// con el logo y el formulario va primero; la textura y el titular se quedan fuera.
 .pagina {
   position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
   min-height: 100vh;
-  padding: 1rem;
-  box-sizing: border-box;
-  background: var(--mat-sys-surface-container-low);
+  min-height: 100dvh;
+  background: var(--mat-sys-surface);
 }
 
 .selector-tema {
   position: absolute;
+  z-index: 2;
   top: 0.5rem;
   inset-inline-end: 0.5rem;
+}
+
+.panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 2rem;
+  overflow: hidden;
+  padding: clamp(2rem, 4vw, 3.5rem);
+  box-sizing: border-box;
+  border-inline-end: 1px solid var(--marca-borde);
+  background:
+    radial-gradient(
+      60% 45% at 18% 0%,
+      color-mix(in srgb, var(--marca-acento) 11%, transparent),
+      transparent
+    ),
+    var(--marca-fondo);
+  color: var(--marca-texto);
+  // el logo del panel va siempre sobre fondo oscuro, sea cual sea el tema
+  --logo-marca: var(--marca-acento);
+  --logo-nombre: var(--marca-texto);
+}
+
+.textura {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  color: var(--marca-acento);
+  opacity: 0.28;
+  pointer-events: none;
+  // se desvanece hacia el titular para que el texto lea limpio
+  mask-image: radial-gradient(ellipse 75% 70% at 78% 24%, var(--marca-acento) 25%, transparent 85%);
+
+  * {
+    vector-effect: non-scaling-stroke;
+  }
+
+  .red,
+  .trayectoria {
+    stroke-dasharray: 3 4;
+  }
+
+  .red {
+    stroke-width: 2;
+  }
+
+  .cristal {
+    stroke-dasharray: 10 6;
+    opacity: 0.55;
+  }
+
+  .juntas {
+    opacity: 0.55;
+  }
+
+  .bola {
+    opacity: 0.9;
+  }
+}
+
+.logo {
+  position: relative;
+  z-index: 1;
+  align-self: flex-start;
+  font-size: 1.25rem;
+}
+
+.mensaje {
+  position: relative;
+  z-index: 1;
+  max-width: 30rem;
+}
+
+.titular {
+  margin: 0;
+  font-size: clamp(2.75rem, 5.2vw, 5rem);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.035em;
+}
+
+.linea {
+  display: block;
+}
+
+.acento {
+  color: var(--marca-acento);
+}
+
+.apoyo {
+  margin: 1.5rem 0 0;
+  max-width: 24rem;
+  text-wrap: balance;
+  color: var(--marca-texto-suave);
+  font: var(--mat-sys-body-large);
+}
+
+.formulario {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  padding: 4rem 1.5rem 2rem;
+  box-sizing: border-box;
 }
 
 .tarjeta {
   width: 100%;
   max-width: 26rem;
   padding: 2rem 1.5rem;
-  border-radius: var(--mat-sys-corner-large);
-  background: var(--mat-sys-surface);
-  box-shadow: var(--mat-sys-level2);
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: var(--mat-sys-corner-extra-large);
+  background: var(--mat-sys-surface-container-low);
   box-sizing: border-box;
 }
 
-.marca {
-  margin: 0 0 0.5rem;
-  color: var(--mat-sys-primary);
-  font: var(--mat-sys-headline-medium);
-  font-weight: 500;
+@media (max-width: 899px) {
+  .pagina {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+  }
+
+  .panel {
+    padding: 1rem 1rem 0;
+    border-inline-end: 0;
+    background: none;
+    color: inherit;
+    --logo-marca: var(--mat-sys-primary);
+    --logo-nombre: var(--mat-sys-on-surface);
+  }
+
+  .textura,
+  .mensaje {
+    display: none;
+  }
+
+  .logo {
+    // alinea el logo con la barra del selector de tema (que ocupa 48 px de alto en la esquina)
+    min-height: 3rem;
+    align-items: center;
+  }
+
+  .formulario {
+    align-items: start;
+    padding: 0.75rem 1rem 2rem;
+  }
 }
