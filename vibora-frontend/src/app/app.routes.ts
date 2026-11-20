@@ -51,6 +51,11 @@ export const routes: Routes = [
           import('./features/invitaciones/invitaciones.routes').then((m) => m.INVITACIONES_ROUTES),
       },
       {
+        path: 'panel',
+        canActivate: [authGuard],
+        loadChildren: () => import('./features/panel/panel.routes').then((m) => m.PANEL_ROUTES),
+      },
+      {
         path: 'club',
         canActivate: [authGuard],
         loadChildren: () => import('./features/club/club.routes').then((m) => m.CLUB_ROUTES),

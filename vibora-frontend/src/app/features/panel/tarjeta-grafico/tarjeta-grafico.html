@@ -1,0 +1,75 @@
+<section class="tarjeta">
+  <header class="cabecera">
+    <h2>{{ titulo() }}</h2>
+    @if (espec()) {
+      <button
+        mat-stroked-button
+        type="button"
+        data-accion="alternar-tabla"
+        [attr.aria-pressed]="verTabla()"
+        (click)="alternarTabla()"
+      >
+        {{ verTabla() ? 'Ver como gráfico' : 'Ver como tabla' }}
+      </button>
+    }
+  </header>
+
+  @if (espec(); as datos) {
+    @if (datos.series.length > 1) {
+      <ul class="leyenda" data-testid="leyenda">
+        @for (serie of datos.series; track serie.clave) {
+          <li>
+            <span class="swatch" [class]="'swatch ' + serie.clave" aria-hidden="true"></span
+            >{{ serie.nombre }}
+          </li>
+        }
+      </ul>
+    }
+
+    @if (verTabla()) {
+      <div class="tabla">
+        <table>
+          <caption class="oculto">
+            {{
+              titulo()
+            }}
+          </caption>
+          <thead>
+            <tr>
+              @for (columna of datos.tabla.columnas; track $index) {
+                <th scope="col" [class.numero]="$index > 0">{{ columna }}</th>
+              }
+            </tr>
+          </thead>
+          <tbody>
+            @for (fila of datos.tabla.filas; track $index) {
+              <tr>
+                @for (celda of fila; track $index) {
+                  @if ($index === 0) {
+                    <th scope="row">{{ celda }}</th>
+                  } @else {
+                    <td class="numero">{{ celda }}</td>
+                  }
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    } @else {
+      <div role="img" [attr.aria-label]="datos.descripcion">
+        <app-grafico-chart [espec]="datos" [(fallo)]="falloGrafico" />
+      </div>
+      <!-- fuera del role="img": sus hijos son presentacionales y un lector de pantalla no anunciaría el aviso -->
+      @if (falloGrafico()) {
+        <p class="fallo" data-aviso="grafico" role="alert">
+          No se pudo cargar el gráfico. Pulsa «Ver como tabla» para consultar los datos.
+        </p>
+      }
+    }
+  } @else {
+    <p class="vacio" data-estado="vacio" role="status">{{ mensajeVacio() }}</p>
+  }
+
+  <ng-content />
+</section>

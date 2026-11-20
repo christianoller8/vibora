@@ -1,0 +1,73 @@
+<section class="tarjeta">
+  <h2>Franjas: ocupación por día y hora</h2>
+
+  @if (mapa().horas.length === 0) {
+    <p class="vacio" data-estado="vacio" role="status">
+      No hay franjas con ranuras ofrecidas en este periodo.
+    </p>
+  } @else {
+    <ul class="leyenda" data-testid="leyenda-calor" aria-label="Escala de ocupación">
+      @for (n of niveles; track n.nivel) {
+        <li>
+          <span class="swatch" [class]="'swatch nivel-' + n.nivel" aria-hidden="true"></span
+          >{{ n.rango }}
+        </li>
+      }
+    </ul>
+
+    <div class="desplazable">
+      <div class="mapa" role="table" aria-label="Ocupación por día de la semana y hora">
+        <div class="fila" role="row">
+          <div class="esquina" aria-hidden="true"></div>
+          @for (dia of mapa().dias; track dia.clave) {
+            <div class="dia" role="columnheader" [attr.aria-label]="dia.nombre">
+              <span aria-hidden="true">{{ dia.corto }}</span>
+            </div>
+          }
+        </div>
+        @for (fila of mapa().celdas; track mapa().horas[$index]) {
+          <div class="fila" role="row">
+            <div class="hora" role="rowheader">{{ mapa().horas[$index] }}</div>
+            @for (celda of fila; track $index) {
+              <div
+                role="cell"
+                class="celda"
+                [class.vacia]="celda.vacia"
+                [class]="celda.nivel === null ? 'celda vacia' : 'celda nivel-' + celda.nivel"
+                [attr.aria-label]="celda.etiqueta"
+              >
+                {{ celda.texto }}
+              </div>
+            }
+          </div>
+        }
+      </div>
+    </div>
+
+    @if (rentables().length > 0) {
+      <h3>Franjas más rentables</h3>
+      <div class="tabla">
+        <table data-testid="rentables">
+          <thead>
+            <tr>
+              <th scope="col">Franja</th>
+              <th scope="col" class="numero">Reservas</th>
+              <th scope="col" class="numero">Ingresos</th>
+              <th scope="col" class="numero">Ocupación</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (f of rentables(); track $index) {
+              <tr>
+                <th scope="row">{{ f.franja }}</th>
+                <td class="numero">{{ f.reservas }}</td>
+                <td class="numero">{{ f.ingresos }}</td>
+                <td class="numero">{{ f.ocupacion }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+</section>

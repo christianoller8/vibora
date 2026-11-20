@@ -1,0 +1,11 @@
+<dl class="kpis" aria-label="Resumen del periodo">
+  @for (t of tarjetas(); track t.clave) {
+    <div class="kpi" [attr.data-kpi]="t.clave">
+      <dt>{{ t.titulo }}</dt>
+      <dd>{{ t.valor }}</dd>
+      @if (t.detalle) {
+        <dd class="detalle">{{ t.detalle }}</dd>
+      }
+    </div>
+  }
+</dl>

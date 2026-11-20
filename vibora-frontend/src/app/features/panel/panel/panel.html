@@ -1,0 +1,156 @@
+<h1>
+  Panel
+  @if (clubNombre(); as nombre) {
+    <span class="nombre">· {{ nombre }}</span>
+  }
+</h1>
+
+@if (clubId() === null) {
+  <p class="aviso-error" data-estado="sin-club" role="alert">
+    No encontramos el club asociado a tu cuenta. Cierra sesión e inicia sesión de nuevo.
+  </p>
+} @else {
+  <section class="filtros" aria-label="Periodo y agrupación">
+    <div class="grupo">
+      <span class="etiqueta" id="etiqueta-periodo">Periodo</span>
+      <mat-button-toggle-group
+        aria-labelledby="etiqueta-periodo"
+        hideSingleSelectionIndicator
+        [value]="preset()"
+        (change)="elegirPreset($event.value)"
+      >
+        @for (p of presets; track p.valor) {
+          <mat-button-toggle [value]="p.valor" [attr.data-preset]="p.valor">{{
+            p.etiqueta
+          }}</mat-button-toggle>
+        }
+      </mat-button-toggle-group>
+    </div>
+
+    @if (preset() === 'personalizado') {
+      <div class="fechas">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Desde</mat-label>
+          <input
+            matInput
+            type="date"
+            name="desde"
+            [value]="desde()"
+            [attr.min]="fechaMinima"
+            [attr.max]="fechaMaxima"
+            (input)="cambiarFecha('desde', $any($event.target).value)"
+          />
+        </mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Hasta</mat-label>
+          <input
+            matInput
+            type="date"
+            name="hasta"
+            [value]="hasta()"
+            [attr.min]="fechaMinima"
+            [attr.max]="fechaMaxima"
+            (input)="cambiarFecha('hasta', $any($event.target).value)"
+          />
+        </mat-form-field>
+      </div>
+    }
+
+    <div class="grupo">
+      <span class="etiqueta" id="etiqueta-granularidad">Agrupar por</span>
+      <mat-button-toggle-group
+        aria-labelledby="etiqueta-granularidad"
+        hideSingleSelectionIndicator
+        [value]="granularidad()"
+        (change)="elegirGranularidad($event.value)"
+      >
+        @for (g of granularidades; track g.valor) {
+          <mat-button-toggle [value]="g.valor" [attr.data-granularidad]="g.valor">{{
+            g.etiqueta
+          }}</mat-button-toggle>
+        }
+      </mat-button-toggle-group>
+    </div>
+  </section>
+
+  @if (avisoRango(); as aviso) {
+    <p class="aviso-error" data-aviso="rango" role="alert">{{ aviso }}</p>
+  }
+
+  @if (error(); as fallo) {
+    <div class="aviso-error" data-estado="error" role="alert">
+      <p>{{ fallo.mensaje }}</p>
+      @if (fallo.tipo === 'generico') {
+        <button mat-stroked-button type="button" data-accion="reintentar" (click)="reintentar()">
+          Reintentar
+        </button>
+      }
+    </div>
+  } @else if (datos(); as d) {
+    @if (cargando()) {
+      <mat-progress-bar mode="indeterminate" aria-label="Actualizando las métricas" />
+    }
+    <!-- con un rango inválido estos datos son del rango anterior: atenuados e `inert` (fuera del árbol de accesibilidad y sin foco; hay botones dentro, por eso no `aria-hidden`) -->
+    <div
+      class="contenido"
+      [class.recargando]="cargando()"
+      [class.obsoleto]="avisoRango() !== null"
+      [attr.inert]="avisoRango() !== null ? '' : null"
+      [attr.aria-busy]="cargando()"
+    >
+      @if (sinActividad()) {
+        <p class="sin-actividad" data-estado="sin-actividad" role="status">
+          No hay reservas ni facturas entre el {{ fecha(d.resumen.desde) }} y el
+          {{ fecha(d.resumen.hasta) }}. Prueba con otro periodo.
+        </p>
+      } @else {
+        <app-tarjetas-kpi [resumen]="d.resumen" />
+
+        <div class="rejilla">
+          <app-tarjeta-grafico
+            titulo="Ingresos por periodo"
+            [espec]="graficoIngresos()"
+            mensajeVacio="No hay ingresos en este periodo."
+          />
+          <app-tarjeta-grafico
+            titulo="Ocupación por pista"
+            [espec]="graficoOcupacion()"
+            mensajeVacio="No se ofreció ninguna ranura en este periodo."
+          />
+          <app-tarjeta-grafico
+            titulo="Cancelaciones"
+            [espec]="graficoCancelaciones()"
+            mensajeVacio="No hay reservas en este periodo."
+          >
+            @if (d.cancelaciones.porPista.length > 0 && graficoCancelaciones() !== null) {
+              <h3>Cancelaciones por pista</h3>
+              <div class="tabla">
+                <table data-testid="cancelaciones-pista">
+                  <thead>
+                    <tr>
+                      <th scope="col">Pista</th>
+                      <th scope="col" class="numero">Canceladas</th>
+                      <th scope="col" class="numero">Ingresos perdidos</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (p of d.cancelaciones.porPista; track p.pistaId) {
+                      <tr>
+                        <th scope="row">{{ p.pistaNombre || 'Pista sin nombre' }}</th>
+                        <td class="numero">{{ p.canceladas }}</td>
+                        <td class="numero">{{ formatearImporte(p.ingresosPerdidos) }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
+          </app-tarjeta-grafico>
+          <app-mapa-franjas class="ancho" [datos]="d.franjas" />
+        </div>
+      }
+    </div>
+  } @else if (cargando()) {
+    <mat-spinner diameter="40" aria-label="Cargando las métricas" />
+  }
+}

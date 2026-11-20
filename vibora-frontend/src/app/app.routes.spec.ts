@@ -52,6 +52,21 @@ describe('rutas de la aplicación', () => {
     expect(await navegar('/', true)).toBe('/agenda');
   });
 
+  it('/panel sin sesión va a /login conservando redirectTo', async () => {
+    expect(await navegar('/panel', false)).toBe('/login?redirectTo=%2Fpanel');
+  });
+
+  it('/panel con el administrador se queda en /panel', async () => {
+    expect(await navegar('/panel', true, USUARIO_ADMIN)).toBe('/panel');
+  });
+
+  it.each(['JUGADOR', 'MONITOR', 'MANTENIMIENTO'] as const)(
+    '/panel con rol %s rebota a /agenda',
+    async (rol) => {
+      expect(await navegar('/panel', true, { ...USUARIO_ADMIN, rol })).toBe('/agenda');
+    },
+  );
+
   it('una ruta desconocida acaba en /agenda (y de ahí en /login sin sesión)', async () => {
     expect(await navegar('/no-existe', true)).toBe('/agenda');
   });

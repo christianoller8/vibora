@@ -144,6 +144,27 @@ describe('MainLayout', () => {
     ]);
   });
 
+  describe('entrada "Panel" (solo el administrador del club)', () => {
+    const entradaPanel = (): HTMLAnchorElement | undefined =>
+      Array.from(el().querySelectorAll<HTMLAnchorElement>('a[mat-list-item]')).find(
+        (a) => a.getAttribute('href') === '/panel',
+      );
+
+    it('el administrador la ve la primera, con icono insights', async () => {
+      await crear(crearAuthFalso(USUARIO_ADMIN));
+
+      expect(entradaPanel()?.textContent).toContain('Panel');
+      expect(entradaPanel()?.querySelector('mat-icon')?.textContent?.trim()).toBe('insights');
+      expect(el().querySelector('a[mat-list-item]')?.getAttribute('href')).toBe('/panel');
+    });
+
+    it.each(['JUGADOR', 'MONITOR', 'MANTENIMIENTO'] as const)('un %s no la ve', async (rol) => {
+      await crear(crearAuthFalso({ ...USUARIO_ADMIN, rol }));
+
+      expect(entradaPanel()).toBeUndefined();
+    });
+  });
+
   describe('entrada "Invitaciones" (solo quien puede aceptar: jugador sin club)', () => {
     const entrada = (): HTMLAnchorElement | undefined =>
       Array.from(el().querySelectorAll<HTMLAnchorElement>('a[mat-list-item]')).find(

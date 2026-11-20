@@ -1,0 +1,102 @@
+:host {
+  display: block;
+  min-width: 0; /* en una rejilla, que el gráfico no ensanche la página */
+}
+
+.tarjeta {
+  padding: 1rem;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 12px;
+  background: var(--mat-sys-surface-container-low, var(--mat-sys-surface));
+}
+
+.cabecera {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+h2 {
+  margin: 0;
+  font: var(--mat-sys-title-medium);
+}
+
+.leyenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  margin: 0 0 0.5rem;
+  padding: 0;
+  list-style: none;
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-label-large);
+}
+
+.swatch {
+  display: inline-block;
+  width: 0.75rem;
+  height: 0.75rem;
+  margin-inline-end: 0.4rem;
+  border-radius: 2px;
+}
+
+.swatch.serie1 {
+  background: var(--viz-serie-1);
+}
+
+.swatch.serie2 {
+  background: var(--viz-serie-2);
+}
+
+.vacio {
+  margin: 0;
+  padding: 1.5rem 0;
+  color: var(--mat-sys-on-surface-variant);
+  text-align: center;
+}
+
+.fallo {
+  margin: 0.5rem 0 0;
+  color: var(--mat-sys-error);
+}
+
+.tabla {
+  max-height: 20rem;
+  overflow: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font: var(--mat-sys-body-medium);
+}
+
+th,
+td {
+  padding: 0.4rem 0.5rem;
+  border-bottom: 1px solid var(--mat-sys-outline-variant);
+  text-align: start;
+  font-weight: 400;
+}
+
+thead th {
+  font-weight: 500;
+}
+
+.numero {
+  text-align: end;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.oculto {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

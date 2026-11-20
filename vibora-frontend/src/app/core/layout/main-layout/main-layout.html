@@ -8,6 +8,12 @@
   >
     @if (auth.estaAutenticado()) {
       <mat-nav-list>
+        @if (auth.esAdminClub()) {
+          <a mat-list-item routerLink="/panel" routerLinkActive="activo" (click)="alNavegar()">
+            <mat-icon matListItemIcon>insights</mat-icon>
+            <span matListItemTitle>Panel</span>
+          </a>
+        }
         <a mat-list-item routerLink="/agenda" routerLinkActive="activo" (click)="alNavegar()">
           <mat-icon matListItemIcon>calendar_month</mat-icon>
           <span matListItemTitle>Agenda</span>

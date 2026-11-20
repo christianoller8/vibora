@@ -1,0 +1,140 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.tarjeta {
+  padding: 1rem;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 12px;
+  background: var(--mat-sys-surface-container-low, var(--mat-sys-surface));
+}
+
+h2 {
+  margin: 0 0 0.75rem;
+  font: var(--mat-sys-title-medium);
+}
+
+h3 {
+  margin: 1.25rem 0 0.5rem;
+  font: var(--mat-sys-title-small);
+}
+
+.vacio {
+  margin: 0;
+  padding: 1.5rem 0;
+  color: var(--mat-sys-on-surface-variant);
+  text-align: center;
+}
+
+.leyenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  margin: 0 0 0.75rem;
+  padding: 0;
+  list-style: none;
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-label-large);
+}
+
+.swatch {
+  display: inline-block;
+  width: 0.9rem;
+  height: 0.9rem;
+  margin-inline-end: 0.4rem;
+  border-radius: 2px;
+  vertical-align: -0.1rem;
+}
+
+/* El mapa se desplaza dentro de su contenedor: la página nunca tiene scroll horizontal */
+.desplazable {
+  overflow-x: auto;
+}
+
+.mapa {
+  display: grid;
+  min-width: 22rem;
+  gap: 2px; /* hueco de 2 px del color de la superficie entre celdas */
+}
+
+.fila {
+  display: grid;
+  grid-template-columns: 3.25rem repeat(7, minmax(2.5rem, 1fr));
+  gap: 2px;
+}
+
+.dia,
+.hora {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-label-large);
+}
+
+.celda {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.25rem;
+  border-radius: 4px;
+  font: var(--mat-sys-label-medium);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.celda.vacia {
+  background: transparent;
+  border: 1px dashed var(--mat-sys-outline-variant);
+}
+
+/* Escala secuencial de un solo tono (azul), de claro a oscuro; el texto cambia a claro cuando el fondo lo pide */
+.nivel-0 {
+  background: var(--viz-calor-0);
+  color: var(--viz-calor-texto-0);
+}
+.nivel-1 {
+  background: var(--viz-calor-1);
+  color: var(--viz-calor-texto-1);
+}
+.nivel-2 {
+  background: var(--viz-calor-2);
+  color: var(--viz-calor-texto-2);
+}
+.nivel-3 {
+  background: var(--viz-calor-3);
+  color: var(--viz-calor-texto-3);
+}
+.nivel-4 {
+  background: var(--viz-calor-4);
+  color: var(--viz-calor-texto-4);
+}
+
+.tabla {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font: var(--mat-sys-body-medium);
+}
+
+th,
+td {
+  padding: 0.4rem 0.5rem;
+  border-bottom: 1px solid var(--mat-sys-outline-variant);
+  text-align: start;
+  font-weight: 400;
+}
+
+thead th {
+  font-weight: 500;
+}
+
+.numero {
+  text-align: end;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
