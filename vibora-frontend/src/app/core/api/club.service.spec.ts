@@ -89,4 +89,34 @@ describe('ClubService', () => {
     req.flush([{ id: 10, nombre: 'Pista 1' }]);
     expect(await resultado).toEqual([{ id: 10, nombre: 'Pista 1' }]);
   });
+
+  it('lee los datos fiscales con GET /api/clubes/{id}/datos-fiscales', async () => {
+    const datos = {
+      razonSocial: null,
+      nif: null,
+      direccionFiscal: null,
+      tipoIva: 21,
+      configurado: false,
+    };
+    const resultado = firstValueFrom(servicio.datosFiscales(3));
+    const req = http.expectOne('/api/clubes/3/datos-fiscales');
+    expect(req.request.method).toBe('GET');
+    req.flush(datos);
+    expect(await resultado).toEqual(datos);
+  });
+
+  it('guarda los datos fiscales con PUT /api/clubes/{id}/datos-fiscales y el body tal cual', async () => {
+    const datos = {
+      razonSocial: 'Club Víbora SL',
+      nif: 'B12345674',
+      direccionFiscal: 'Calle Mayor 1, Madrid',
+      tipoIva: 10,
+    };
+    const resultado = firstValueFrom(servicio.actualizarDatosFiscales(3, datos));
+    const req = http.expectOne('/api/clubes/3/datos-fiscales');
+    expect(req.request.method).toBe('PUT');
+    expect(req.request.body).toEqual(datos);
+    req.flush({ ...datos, configurado: true });
+    expect((await resultado).configurado).toBe(true);
+  });
 });
