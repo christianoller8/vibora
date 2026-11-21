@@ -215,7 +215,12 @@ Everything except registration, login and `/actuator/health` needs the `Authoriz
 | `GET /api/clubes/{clubId}/metricas/resumen\|ingresos\|ocupacion\|franjas\|cancelaciones` | Club metrics |
 | `GET /api/notificaciones`, WebSocket `/ws` | Notifications |
 
-There is no Swagger or OpenAPI page yet (see the roadmap).
+**API docs (Swagger UI).** `./mvnw spring-boot:run` turns them on (the Maven plugin sets `VIBORA_API_DOCS=true`):
+
+1. Open `http://localhost:8081/swagger-ui/index.html` (the spec is at `http://localhost:8081/v3/api-docs`).
+2. Log in with `POST /api/auth/login` and paste the JWT into **Authorize**.
+
+Everywhere else they are off and the backend answers 404: `java -jar`, runs from the IDE and the Docker image. To turn them on there, set `VIBORA_API_DOCS=true` (for the image, `docker run -e VIBORA_API_DOCS=true`; `docker-compose.yml` does not pass it through). Keep it to local work: it publishes the whole API spec without asking for a token.
 
 </details>
 
@@ -412,7 +417,7 @@ If you started the app with `--no-deps backend frontend` and later stopped the b
 
 ### Environment variables
 
-Defined in `docker-compose.yml` and `application.properties`. `.env.example` explains how to generate a secret.
+Defined in `docker-compose.yml` and `application.properties` (`VIBORA_API_DOCS` only in `application.properties`, the `pom.xml` and the backend `Dockerfile`). `.env.example` explains how to generate a secret.
 
 | Variable | Required | Default | Description |
 | --- | :---: | --- | --- |
@@ -423,12 +428,13 @@ Defined in `docker-compose.yml` and `application.properties`. `.env.example` exp
 | `FRONTEND_PORT` | No | `8088` | Host port of the full Docker stack |
 | `VIBORA_WEBSOCKET_ORIGENES_PERMITIDOS` | No | `http://localhost:8088` in Docker, `http://localhost:4200` locally | Browser origins allowed to open the WebSocket |
 | `VIBORA_ALMACEN_DIRECTORIO` | No | `/data/uploads` in Docker, `./data/uploads` locally | Folder for incident photos |
+| `VIBORA_API_DOCS` | No | `false`; `./mvnw spring-boot:run` sets `true` | Serves the OpenAPI spec and Swagger UI; with `false` both answer 404 |
 | `JAVA_OPTS` | No | empty | Extra JVM options in Docker |
 
 ## Testing and verification
 
 ```bash
-cd vibora-backend && ./mvnw test                  # needs Docker (Testcontainers); 1,321 tests as of November 2026
+cd vibora-backend && ./mvnw test                  # needs Docker (Testcontainers); 1,333 tests as of November 2026
 cd vibora-frontend && npx ng test --watch=false   # Vitest; 1,646 tests
 cd vibora-frontend && npm run test:csp            # checks the generated CSP
 cd vibora-frontend && npm run test:tema           # checks the initial theme script
@@ -449,7 +455,6 @@ The backend suite takes several minutes because it starts a real PostgreSQL cont
 CI is defined in [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) (backend tests, frontend tests and guards, seed script tests, and a Docker smoke test through nginx), but it has never run on GitHub: the account has a billing lock that prevents jobs from starting. The commands it uses have been run locally.
 
 - [ ] Phase 4: AI matchmaking
-- [ ] OpenAPI / Swagger documentation of the API
 - [ ] Server-side token revocation on logout and token refresh
 - [ ] Anti-abuse limits shared between instances (for example in Redis)
 - [ ] Run CI on GitHub

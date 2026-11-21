@@ -1,5 +1,6 @@
 package com.vibora.auth;
 
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +27,7 @@ public class AuthController {
 	 * el cliente no cuenta. El limite se comprueba tras validar el cuerpo (los 400 no cuentan) y antes del hash.
 	 */
 	@PostMapping("/registro")
+	@SecurityRequirements // publico: anula el requisito bearerAuth global de OpenAPI
 	@ResponseStatus(HttpStatus.CREATED)
 	public UsuarioResumen registro(@Valid @RequestBody RegistroRequest peticion, HttpServletRequest http) {
 		limitador.admitirRegistro(http.getRemoteAddr());
@@ -33,6 +35,7 @@ public class AuthController {
 	}
 
 	@PostMapping("/login")
+	@SecurityRequirements // publico: anula el requisito bearerAuth global de OpenAPI
 	public TokenResponse login(@Valid @RequestBody LoginRequest peticion, HttpServletRequest http) {
 		String ip = http.getRemoteAddr();
 		LimitadorAuth.Admision admision = limitador.admitirLogin(ip, peticion.email());

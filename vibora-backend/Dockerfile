@@ -43,6 +43,8 @@ USER vibora
 # VIBORA_WEBSOCKET_ORIGENES_PERMITIDOS...). Opciones extra de la JVM: JAVA_OPTS.
 ENV JAVA_OPTS=""
 ENV VIBORA_ALMACEN_DIRECTORIO=/data/uploads
+# OpenAPI / Swagger UI apagados en la imagen (ya lo estan por defecto; segunda guarda explicita): /v3/api-docs y /swagger-ui responden 404
+ENV VIBORA_API_DOCS=false
 EXPOSE 8081
 
 HEALTHCHECK --interval=15s --timeout=5s --start-period=60s --retries=5 \

@@ -28,6 +28,9 @@
 	</scm>
 	<properties>
 		<java.version>25</java.version>
+		<!-- springdoc 3.2.0: construida contra Spring Boot 4.1.2 y aqui corre sobre 4.1.1 (lo prueba la suite completa);
+			3.2.1 ya usa Boot 4.2.0 -->
+		<springdoc.version>3.2.0</springdoc.version>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -84,6 +87,12 @@
 				</exclusion>
 			</exclusions>
 		</dependency>
+		<!-- OpenAPI + Swagger UI (solo desarrollo local: apagados por defecto, spring-boot:run los enciende; ver application.properties) -->
+		<dependency>
+			<groupId>org.springdoc</groupId>
+			<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+			<version>${springdoc.version}</version>
+		</dependency>
 		<dependency>
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
@@ -138,6 +147,12 @@
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
+				<configuration>
+					<!-- Solo afecta a spring-boot:run/start (no a repackage ni build-image): la documentacion de la API solo se enciende en local -->
+					<environmentVariables>
+						<VIBORA_API_DOCS>true</VIBORA_API_DOCS>
+					</environmentVariables>
+				</configuration>
 			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>

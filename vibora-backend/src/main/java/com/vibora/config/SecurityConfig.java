@@ -41,6 +41,10 @@ public class SecurityConfig {
 						.requestMatchers("/error").permitAll()
 						// solo el estado (UP/DOWN) para el HEALTHCHECK; el resto de actuator ni esta expuesto
 						.requestMatchers(HttpMethod.GET, "/actuator/health", "/actuator/health/**").permitAll()
+						// OpenAPI y Swagger UI: publicos para poder abrirlos; con VIBORA_API_DOCS=false springdoc no registra
+						// las rutas y responden 404
+						.requestMatchers(HttpMethod.GET, "/v3/api-docs", "/v3/api-docs/**", "/swagger-ui.html",
+								"/swagger-ui/**").permitAll()
 						// el navegador no puede poner Authorization en el handshake: el JWT se valida en el frame CONNECT
 						.requestMatchers("/ws", "/ws/**").permitAll()
 						.anyRequest().authenticated())

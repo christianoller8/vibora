@@ -215,7 +215,12 @@ Todo salvo el registro, el login y `/actuator/health` necesita la cabecera `Auth
 | `GET /api/clubes/{clubId}/metricas/resumen\|ingresos\|ocupacion\|franjas\|cancelaciones` | Métricas del club |
 | `GET /api/notificaciones`, WebSocket `/ws` | Notificaciones |
 
-Todavía no hay página de Swagger ni de OpenAPI (mira la hoja de ruta).
+**Documentación de la API (Swagger UI).** `./mvnw spring-boot:run` la activa (el plugin de Maven fija `VIBORA_API_DOCS=true`):
+
+1. Abre `http://localhost:8081/swagger-ui/index.html` (la especificación está en `http://localhost:8081/v3/api-docs`).
+2. Inicia sesión con `POST /api/auth/login` y pega el JWT en **Authorize**.
+
+En cualquier otro caso está apagada y el backend responde 404: `java -jar`, la ejecución desde el IDE y la imagen de Docker. Para activarla ahí, define `VIBORA_API_DOCS=true` (en la imagen, `docker run -e VIBORA_API_DOCS=true`; `docker-compose.yml` no la transmite). Úsala solo en local: publica la especificación completa de la API sin pedir token.
 
 </details>
 
@@ -412,7 +417,7 @@ Si levantaste la app con `--no-deps backend frontend` y luego paraste el backend
 
 ### Variables de entorno
 
-Definidas en `docker-compose.yml` y `application.properties`. `.env.example` explica cómo generar un secreto.
+Definidas en `docker-compose.yml` y `application.properties` (`VIBORA_API_DOCS`, solo en `application.properties`, el `pom.xml` y el `Dockerfile` del backend). `.env.example` explica cómo generar un secreto.
 
 | Variable | Obligatoria | Por defecto | Descripción |
 | --- | :---: | --- | --- |
@@ -423,12 +428,13 @@ Definidas en `docker-compose.yml` y `application.properties`. `.env.example` exp
 | `FRONTEND_PORT` | No | `8088` | Puerto del host del stack completo en Docker |
 | `VIBORA_WEBSOCKET_ORIGENES_PERMITIDOS` | No | `http://localhost:8088` en Docker, `http://localhost:4200` en local | Orígenes de navegador que pueden abrir el WebSocket |
 | `VIBORA_ALMACEN_DIRECTORIO` | No | `/data/uploads` en Docker, `./data/uploads` en local | Carpeta de las fotos de incidencias |
+| `VIBORA_API_DOCS` | No | `false`; `./mvnw spring-boot:run` fija `true` | Sirve la especificación OpenAPI y Swagger UI; con `false` ambas responden 404 |
 | `JAVA_OPTS` | No | vacío | Opciones extra de la JVM en Docker |
 
 ## Pruebas y verificación
 
 ```bash
-cd vibora-backend && ./mvnw test                  # necesita Docker (Testcontainers); 1.321 tests en noviembre de 2026
+cd vibora-backend && ./mvnw test                  # necesita Docker (Testcontainers); 1.333 tests en noviembre de 2026
 cd vibora-frontend && npx ng test --watch=false   # Vitest; 1.646 tests
 cd vibora-frontend && npm run test:csp            # comprueba la CSP generada
 cd vibora-frontend && npm run test:tema           # comprueba el script del tema inicial
@@ -449,7 +455,6 @@ La suite del backend tarda varios minutos porque arranca un contenedor real de P
 La CI está definida en [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) (tests del backend, tests y guardias del frontend, tests del script de datos y una prueba de humo con Docker a través de nginx), pero nunca se ha ejecutado en GitHub: la cuenta tiene un bloqueo de facturación que impide arrancar los jobs. Los comandos que usa se han ejecutado en local.
 
 - [ ] Fase 4: emparejamiento con IA
-- [ ] Documentación OpenAPI / Swagger de la API
 - [ ] Revocación del token en el servidor al cerrar sesión y renovación del token
 - [ ] Límites antiabuso compartidos entre instancias (por ejemplo, en Redis)
 - [ ] Ejecutar la CI en GitHub
