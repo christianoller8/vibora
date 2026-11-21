@@ -26,5 +26,8 @@ vibora-frontend/.angular/
 Thumbs.db
 .vscode/
 
+# Imágenes de marcas de terceros usadas solo como inspiración: nunca se suben al repositorio
+docs/inspiration-designs/
+
 # Herramientas locales del asistente (no es código del proyecto)
 .atl/
