@@ -1,268 +1,471 @@
+<a name="readme-top"></a>
+
+<div align="center">
+
+**English** · [Español](./README.es.md)
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/banner-dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="./docs/assets/banner-light.png">
+  <img alt="Víbora logo on a dark or light background" src="./docs/assets/banner-light.png" width="100%">
+</picture>
+
 # Víbora
 
-Plataforma para reservar pistas de pádel en clubes y montar partidos abiertos en los que otros jugadores se apuntan.
-Backend Spring Boot (REST + JWT + WebSocket STOMP, PostgreSQL) y frontend Angular con Angular Material.
+Padel club app that books courts without double bookings and helps players fill a match and split the fee.
 
-## Qué incluye
+<!-- Repo-based badges: the repository is private, so these do not render yet. Uncomment them when the repo goes public.
+[![License](https://img.shields.io/github/license/christianoller8/vibora?style=flat-square)](./LICENSE)
+[![Last commit](https://img.shields.io/github/last-commit/christianoller8/vibora?style=flat-square)](https://github.com/christianoller8/vibora/commits/main)
+-->
 
-- **Reservas:** clubes, pistas, tarifas por franja, agenda por día, reservas sin solapamientos (garantizado por una
-  restricción de PostgreSQL) y cancelación con plazo.
-- **Partidos abiertos y pagos compartidos:** hasta 4 jugadores por reserva, reparto de la cuota en céntimos, deudas,
-  pago simulado y saldos.
-- **Notificaciones en tiempo real** por WebSocket (STOMP) con el mismo JWT.
-- **Incidencias:** reporte con fotos, estados, historial, asignación al personal de mantenimiento y bloqueo de pistas
-  sin tocar las reservas ya hechas.
-- **Gestión del club:** personal por email, bloqueos y reservas del día con cancelación del administrador.
-- **Solo API, todavía sin pantalla:** facturas (numeración correlativa, IVA, rectificativas, PDF; documentos
-  simulados sin validez fiscal), datos fiscales del club y métricas del panel (ingresos, ocupación, franjas, cancelaciones).
+**[Architecture](#architecture)** · [Security](#security) · [Getting started](#getting-started) · [Testing and verification](#testing-and-verification) · [Status and roadmap](#status-and-roadmap)
 
-## Requisitos
+</div>
 
-JDK 25, Node 24 (el mismo que usa el flujo de CI; `node --test` con comodines necesita Node 22 o superior) y Docker
-Desktop (la base de datos y los tests del backend usan contenedores).
+> [!NOTE]
+> All data is synthetic: users are `@vibora.test` accounts and all money is simulated. No real payments, no real invoices.
 
-## Arranque en local
+## Demo
 
-```bash
-docker compose up -d db                      # PostgreSQL (puerto 15433, solo accesible desde tu máquina)
-cd vibora-backend && ./mvnw spring-boot:run  # API en http://localhost:8081
-cd vibora-frontend && npm start              # app en http://localhost:4200
+<!-- Demo video: not recorded yet. When it exists, upload it as described in the author's notes, then replace the URL below and uncomment the block.
+https://github.com/user-attachments/assets/00000000-0000-0000-0000-000000000000
+-->
+
+<table>
+  <tr>
+    <td width="50%">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/agenda-dark.webp">
+        <source media="(prefers-color-scheme: light)" srcset="./docs/assets/agenda-light.webp">
+        <img src="./docs/assets/agenda-light.webp" alt="Daily court schedule with free and taken 90-minute slots and their prices">
+      </picture>
+    </td>
+    <td width="50%">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/partidos-dark.webp">
+        <source media="(prefers-color-scheme: light)" srcset="./docs/assets/partidos-light.webp">
+        <img src="./docs/assets/partidos-light.webp" alt="List of open matches with the number of free spots and the share each player pays">
+      </picture>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/panel-dark.webp">
+        <source media="(prefers-color-scheme: light)" srcset="./docs/assets/panel-light.webp">
+        <img src="./docs/assets/panel-light.webp" alt="Club metrics panel with revenue chart, occupancy and cancellations">
+      </picture>
+    </td>
+    <td width="50%">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/facturacion-dark.webp">
+        <source media="(prefers-color-scheme: light)" srcset="./docs/assets/facturacion-light.webp">
+        <img src="./docs/assets/facturacion-light.webp" alt="Club invoicing tab listing simulated invoices with their numbers and totals">
+      </picture>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/mobile-agenda-dark.webp">
+        <source media="(prefers-color-scheme: light)" srcset="./docs/assets/mobile-agenda-light.webp">
+        <img src="./docs/assets/mobile-agenda-light.webp" alt="Mobile view of the daily court schedule" width="195">
+      </picture>
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/mobile-reservas-dark.webp">
+        <source media="(prefers-color-scheme: light)" srcset="./docs/assets/mobile-reservas-light.webp">
+        <img src="./docs/assets/mobile-reservas-light.webp" alt="Mobile view of a player's own bookings" width="195">
+      </picture>
+    </td>
+    <td width="50%">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/login-dark.webp">
+        <source media="(prefers-color-scheme: light)" srcset="./docs/assets/login-light.webp">
+        <img src="./docs/assets/login-light.webp" alt="Sign-in screen with the Víbora logo">
+      </picture>
+    </td>
+  </tr>
+</table>
+
+The interface has a dark theme (default) and a light theme with a toggle. Contrast was checked against WCAG AA in both.
+
+## About the project
+
+Small padel clubs often run bookings over WhatsApp or spreadsheets, and players spend more time finding a fourth player and splitting the court fee than playing. Víbora gives each club a court schedule where **two bookings can never overlap**, and lets a player open a booking as a match that others join, with the fee split automatically.
+
+### Key features
+
+- **Bookings without overlaps**: two players booking the same slot at the same moment get one `201` and one `409`.
+- **Open matches and shared fees**: up to 4 players per booking; the fee is split in cents and each player gets a charge to pay (simulated payment).
+- **Live notifications**: a player who joins or leaves, a new charge or a cancelled booking arrive over WebSocket (STOMP) without reloading.
+- **Incidents**: players who have played at the club, and its staff, report court problems with photos; the admin assigns them to maintenance and can block a court without touching bookings already made.
+- **Club management**: tariffs per time band, courts, staff by invitation (the invited person accepts or declines), and the day's bookings with admin cancellation.
+- **Invoices**: gapless numbering per club and year, VAT, corrective invoices and PDF. They are simulated documents without tax validity.
+- **Metrics panel**: revenue, occupancy, best time bands and cancellations; it is the club admin's landing page (`/panel`).
+
+### Scope and non-goals
+
+| Status | Capability | Note |
+| --- | --- | --- |
+| Done and tested | Booking without overlaps under concurrency | `ReservaConcurrenciaTests` |
+| Done and tested | Cap of 10 active bookings per player under concurrency | `ReservaCupoConcurrenciaTests` |
+| Done | Open matches, fee split, simulated payments | Balances per player |
+| Done | Invoices, club tax data, metrics panel | Screens in the club "Facturación" tab, player "Mis facturas" and `/panel` |
+| Out of scope | Real payments | Payment is a state change in the database |
+| Out of scope | Invoices with tax validity | Every PDF says "simulated document" |
+| Out of scope | Sending emails | Invitations and alerts appear inside the app |
+| Out of scope | Running several backend instances | Anti-abuse limits live in memory per instance |
+| Out of scope | Native mobile app | The web app is responsive |
+| Pending | Phase 4: AI matchmaking | Not started |
+
+## Architecture
+
+```mermaid
+---
+title: Víbora architecture
+---
+flowchart LR
+    spa["Angular SPA (nginx in Docker)"]
+    api["Spring Boot: REST API and STOMP at /ws"]
+    db[("PostgreSQL 17 with Flyway V1 to V8")]
+    files[("Volume with incident photos")]
+    spa -->|"HTTP /api"| api
+    spa -->|"WebSocket /ws"| api
+    api -->|"JDBC"| db
+    api -->|"files"| files
 ```
 
-En Windows, si Docker falla con `bind: An attempt was made to access a socket in a way forbidden by its access
-permissions`, el puerto del host cae en un rango reservado por el sistema (`netsh interface ipv4 show
-excludedportrange protocol=tcp`; cambia tras reiniciar). Elige otro con `POSTGRES_PORT` (compose) y el mismo valor en
-`VIBORA_DB_PORT` (backend).
+The Angular app calls the REST API and opens a STOMP WebSocket at `/ws`. In Docker, nginx serves the app and forwards `/api` and `/ws` to the backend, which is not published on the host. The backend stores data in PostgreSQL, whose schema is managed by Flyway migrations `V1` to `V8`, and keeps incident photos as files in a volume.
 
-## Tests
+### Booking flow
 
-```bash
-cd vibora-backend && ./mvnw test                          # necesita Docker (Testcontainers); unos 8 minutos
-cd vibora-frontend && npx ng test --watch=false           # Vitest
-cd vibora-frontend && npm run test:csp                    # comprueba la política CSP generada
-node --test "scripts/lib/*.test.mjs"                      # helper de fechas del script de datos
+```mermaid
+---
+title: Two players book the same slot
+---
+sequenceDiagram
+    participant A as Player A
+    participant B as Player B
+    participant API as Spring Boot
+    participant DB as PostgreSQL
+    A->>API: POST /api/clubes/1/pistas/1/reservas
+    B->>API: POST /api/clubes/1/pistas/1/reservas
+    API->>DB: INSERT reserva (A)
+    DB-->>API: ok
+    API-->>A: 201 Created
+    API->>DB: INSERT reserva (B)
+    DB-->>API: violates reserva_sin_solape
+    API-->>B: 409 Conflict
 ```
 
-Si Maven falla con un error de certificados (PKIX) detrás de un antivirus, exporta
-`MAVEN_OPTS="-Djavax.net.ssl.trustStoreType=Windows-ROOT"` antes de lanzarlo (Windows).
+Both requests arrive at the same time. PostgreSQL accepts the first insert and rejects the second one because it overlaps; the backend turns that violation into `409 Conflict`. The guarantee lives in the database, not in the Java code.
 
-## Stack completo con Docker
+### Technical decisions
 
-Base de datos, backend y frontend (nginx) en contenedores. Los dos últimos viven bajo el perfil `app`, así que el
-flujo de desarrollo de arriba no cambia: `docker compose up -d db` sigue levantando solo PostgreSQL.
+| Decision | Discarded alternative | Why, and what it costs |
+| --- | --- | --- |
+| "No overlapping bookings" is a PostgreSQL exclusion constraint (`btree_gist`, `reserva_sin_solape`) | Check for an overlap in Java, then insert | Two simultaneous requests cannot both pass a check-then-insert. Cost: the rule lives in SQL and the violation must be mapped to a `409` (the Java check remains only for a friendly error in the normal case) |
+| Permissions are read from the database on every request | Put the staff role and club in the JWT | A staff member removed from the club loses access immediately, not when the token expires. Cost: one extra query per request. The token carries only the email and a coarse role claim that no endpoint trusts |
+| Invoice numbers come from a counter row locked in the same transaction (`factura_serie`), and a trigger makes invoices immutable | Compute `max(numero) + 1`, or rely on the application to never edit | A rolled-back transaction rolls back the counter, so there are no gaps; a correction is a new corrective invoice. Cost: concurrent invoices of one club and year are serialized |
+
+### Roles and permissions
+
+Every check below is made against the database, not against the token.
+
+| Role | Can do |
+| --- | --- |
+| `JUGADOR` (player) | Book courts, open and join matches, pay shares, see own bookings, invoices and balances; accept or decline staff invitations. Self-registration always creates this role |
+| `MONITOR` | Club staff with no admin powers; can report incidents |
+| `MANTENIMIENTO` (maintenance) | Works the incidents assigned to them and can list the court blocks of their club |
+| `ADMIN_CLUB` (club admin) | Everything for their own club: courts, tariffs, staff invitations, court blocks, bookings, invoices, tax data, metrics |
+
+### Metrics definitions
+
+All defined in `vibora-backend/src/main/java/com/vibora/metricas/MetricasService.java`. A booking's day is the local date (Europe/Madrid) of its start, and no player data leaves these endpoints.
+
+| Metric | Definition |
+| --- | --- |
+| Revenue | Sum of the frozen price of `CONFIRMADA` bookings per play day. It is not what was collected or invoiced |
+| Lost revenue | Same sum over cancelled bookings |
+| Occupancy | Occupied slots divided by offered slots, using the current opening hours and courts for the whole range |
+| Cancellation rate | Cancelled bookings divided by confirmed plus cancelled |
+| Average ticket | Revenue divided by confirmed bookings (empty if there are none) |
+| Best time bands | Weekday and start time ranked by revenue, then by number of bookings |
+| Invoiced | Invoices issued in the range, net of corrective invoices (which carry negative amounts) |
+
+<details>
+<summary><strong>Main endpoints</strong></summary>
+
+Everything except registration, login and `/actuator/health` needs the `Authorization: Bearer <token>` header.
+
+| Method and path | Purpose |
+| --- | --- |
+| `POST /api/auth/registro`, `POST /api/auth/login`, `GET /api/auth/me` | Register, sign in, current profile |
+| `GET /api/clubes`, `POST /api/clubes`, `PUT /api/clubes/{id}` | Clubs |
+| `GET\|POST /api/clubes/{clubId}/pistas`, `.../tarifas` | Courts and tariffs |
+| `GET /api/clubes/{clubId}/pistas/{pistaId}/agenda?fecha=` | Daily schedule of a court |
+| `POST /api/clubes/{clubId}/pistas/{pistaId}/reservas` | Book a slot (`201`, or `409` if taken) |
+| `GET /api/reservas/mias`, `POST /api/reservas/{id}/cancelar` | Own bookings, cancel |
+| `GET /api/partidos`, `PUT /api/reservas/{id}/abierta`, `POST /api/reservas/{id}/apuntarse`, `.../salir` | Open matches |
+| `GET /api/cargos/mios`, `POST /api/cargos/{id}/pagar`, `GET /api/saldos` | Charges, simulated payment, balances |
+| `POST /api/clubes/{clubId}/incidencias`, `POST /api/incidencias/{id}/fotos` | Incidents and photos |
+| `POST /api/clubes/{clubId}/invitaciones`, `POST /api/invitaciones/{id}/aceptar` | Staff invitations |
+| `POST /api/reservas/{id}/factura`, `GET /api/facturas/{id}/pdf` | Issue an invoice, download its PDF |
+| `GET /api/clubes/{clubId}/metricas/resumen\|ingresos\|ocupacion\|franjas\|cancelaciones` | Club metrics |
+| `GET /api/notificaciones`, WebSocket `/ws` | Notifications |
+
+There is no Swagger or OpenAPI page yet (see the roadmap).
+
+</details>
+
+<details>
+<summary><strong>Project structure</strong></summary>
+
+| Path | Responsibility |
+| --- | --- |
+| `vibora-backend/` | Spring Boot API, domain packages (`reserva`, `partido`, `cargo`, `factura`, `metricas`, ...) and Flyway migrations |
+| `vibora-frontend/` | Angular app, nginx config and the CSP generator (`docker/csp.mjs`) |
+| `scripts/` | `seed-dev.mjs`, the sample data script (dev only) |
+| `ops/` | `db-roles.sql` and `backup-dev.mjs` |
+| `docker-compose.yml` | PostgreSQL, and backend plus frontend under the `app` profile |
+| `.github/workflows/ci.yml` | CI definition (see the status section) |
+| `docs/assets/` | Banner and screenshots |
+
+</details>
+
+## Tech stack
+
+| Layer | Technology | Purpose |
+| --- | --- | --- |
+| Frontend | ![Angular](https://img.shields.io/badge/Angular_22-DD0031?style=flat-square&logo=angular&logoColor=white) ![Angular Material](https://img.shields.io/badge/Angular_Material-3F51B5?style=flat-square&logo=angular&logoColor=white) | Single-page app and UI components |
+| Frontend | ![Chart.js](https://img.shields.io/badge/Chart.js_4-FF6384?style=flat-square&logo=chartdotjs&logoColor=white) ![STOMP](https://img.shields.io/badge/STOMP_7-1F2937?style=flat-square) | Metrics charts and live notifications |
+| Backend | ![Java](https://img.shields.io/badge/Java_25-ED8B00?style=flat-square&logo=openjdk&logoColor=white) ![Spring Boot](https://img.shields.io/badge/Spring_Boot_4.1-6DB33F?style=flat-square&logo=springboot&logoColor=white) | REST API, WebSocket, security, booking rules |
+| Data | ![PostgreSQL](https://img.shields.io/badge/PostgreSQL_17-4169E1?style=flat-square&logo=postgresql&logoColor=white) ![Flyway](https://img.shields.io/badge/Flyway-CC0200?style=flat-square&logo=flyway&logoColor=white) | Storage, exclusion constraint, migrations |
+| Testing | ![Testcontainers](https://img.shields.io/badge/Testcontainers-2496ED?style=flat-square&logo=docker&logoColor=white) ![Vitest](https://img.shields.io/badge/Vitest_4-6E9F18?style=flat-square&logo=vitest&logoColor=white) | Integration tests on real PostgreSQL, frontend tests |
+| Delivery | ![Docker](https://img.shields.io/badge/Docker_Compose-2496ED?style=flat-square&logo=docker&logoColor=white) ![nginx](https://img.shields.io/badge/nginx-009639?style=flat-square&logo=nginx&logoColor=white) | Full stack in containers |
+
+## Security
+
+- **Passwords**: hashed with BCrypt, normalized to Unicode NFC, and limited to 72 UTF-8 bytes (BCrypt would otherwise truncate silently). Login always checks a hash, even for unknown emails, so response time does not reveal which accounts exist.
+- **Session**: a stateless JWT signed with HMAC-SHA256 (`sub` = email, 60 minutes). The secret must be at least 32 bytes; the app refuses to start otherwise.
+- **Authorization**: club membership and role are read from the database on every request (see the decisions table). Self-registration can only create players.
+- **Rate limits**: login is limited per IP and email, registration per IP; exceeding a limit returns `429` with `Retry-After`. nginx adds its own limit on login and registration.
+- **Browser policy**: the Content-Security-Policy is generated by `vibora-frontend/docker/csp.mjs` with no `unsafe-inline` for scripts (inline scripts are allowed only by hash), and `npm run test:csp` checks it.
+- **Database roles**: `ops/db-roles.sql` defines least-privilege roles for production.
+- **Known limits**: there is no server-side token revocation on logout and no token refresh (the user signs in again after 60 minutes). The token is kept in `localStorage`, so an XSS flaw could read it; the strict CSP is the mitigation.
+
+<details>
+<summary><strong>Limits and protections (all values)</strong></summary>
+
+Every value is a property in `application.properties` and can be overridden with an environment variable. Exceeding a rate limit returns **429** with `{"error": "..."}` and a `Retry-After` header (seconds).
+
+| What | Property | Default |
+| --- | --- | --- |
+| Login attempts per (IP, email) | `vibora.seguridad.login-max-por-email` / `login-ventana` | 5 per 15 min (a successful login resets the counter) |
+| Login attempts per IP | `vibora.seguridad.login-max-por-ip` | 30 per 15 min |
+| Registrations per IP | `vibora.seguridad.registro-max-por-ip` / `registro-ventana` | 10 per hour |
+| Booking horizon | `vibora.reservas.horizonte-dias` | 60 days (Madrid calendar day) → 400 |
+| Active bookings per player | `vibora.reservas.max-activas-por-usuario` | 10 (confirmed and not started) → 409; joining an open match does not count |
+| Simultaneous image decodes | `vibora.almacen.decodificaciones-simultaneas` / `espera-decodificacion` | 2; no free slot within 10 s → 503 |
+| Maximum photo resolution | `vibora.almacen.max-megapixeles` | 16 MP |
+| Photos per person | `vibora.almacen.cuota-diaria-por-usuario` | 40 in a rolling 24 h → 429 |
+| Orphan temporary files | `vibora.almacen.limpieza-tmp-horas` / `limpieza-tmp-cron` | `tmp-*` older than 1 h are deleted hourly |
+| WebSocket sessions per person | `vibora.websocket.max-sesiones-por-usuario` | 10 (the next one gets an ERROR frame) |
+| Pending staff invitations per club | `vibora.personal.max-pendientes-por-club` | 50 → 429 |
+| Staff invitations created per club in 24 h | `vibora.personal.max-invitaciones-por-club-24h` | 30 → 429 |
+
+nginx also limits `/api/auth/login` (10 requests per minute, burst 5) and `/api/auth/registro` (5 per minute, burst 3) per IP, with a JSON `429`.
+
+The photo quota counts the photos that exist in the last 24 hours, so uploading, deleting and uploading again frees quota on purpose.
+
+**IP limits and topology.** The per-IP limits only tell clients apart if nginx sees their real IP. With Docker Desktop's NAT, a shared Wi-Fi or a load balancer, every client can arrive with the same IP and share one bucket. Two options:
+
+- **Real IP in nginx** (off by default): mount a `*.conf` file at `/etc/nginx/realip/` in the `frontend` container with your trusted proxy range (never `0.0.0.0/0` in production):
+
+  ```nginx
+  set_real_ip_from 10.0.0.0/8;
+  real_ip_header X-Forwarded-For;
+  real_ip_recursive on;
+  ```
+
+  In Compose: `volumes: ["./ops/realip.conf:/etc/nginx/realip/realip.conf:ro"]` on the `frontend` service.
+- **Raise the thresholds** where IPs cannot be told apart (demos, shared networks): `VIBORA_SEGURIDAD_LOGIN_MAX_POR_IP`, `VIBORA_SEGURIDAD_REGISTRO_MAX_POR_IP`, and the `rate=`/`burst=` of the `auth_login` and `auth_registro` nginx zones.
+
+IPv6 addresses are grouped by /64. **The login and registration limiter is in memory and per instance**: with more than one backend instance each counts separately. It would have to move to Redis or similar.
+
+</details>
+
+<details>
+<summary><strong>Staff invitations</strong></summary>
+
+Nobody becomes a monitor or maintenance worker without accepting. The club admin invites an email address and the person decides:
+
+1. `POST /api/clubes/{clubId}/invitaciones` with `{email, rol}` (`MONITOR` or `MANTENIMIENTO`; club admin only) always answers `202` with the same message, whether the email is registered, free, already in another club or unknown. There is no account enumeration. The only visible errors are `400`, `403`/`404` and `429`. Inviting the same email twice while the first invitation is alive does nothing new.
+2. `GET /api/clubes/{clubId}/invitaciones?estado=` lists the club's invitations (newest first, up to 100) and `DELETE /api/clubes/{clubId}/invitaciones/{id}` cancels a pending one.
+3. The invited person sees `GET /api/invitaciones/mias` and decides with `POST /api/invitaciones/{id}/aceptar` or `.../rechazar`. Only the recipient, identified by the email stored in the database and not by the token, can do it; anyone else gets `404`. After accepting, the person must sign in again because the old token still says `JUGADOR`.
+4. Staff can leave with `POST /api/personal/salir`. The admin removes staff with `DELETE /api/clubes/{clubId}/personal/{usuarioId}`. Either way the person goes back to `JUGADOR` and their active incidents stay open and unassigned.
+
+An invitation expires after 14 days (`vibora.personal.invitacion-dias`); a daily job (03:45 Madrid time) marks expired ones. Caps per club: 50 pending and 30 created per 24 hours.
+
+</details>
+
+<details>
+<summary><strong>Incident photos</strong></summary>
+
+Photos (JPEG, PNG or WebP, up to 5 MB and 4 per incident) are stored as files, not in the database, in the folder `vibora.almacen.directorio`:
+
+- **Local development**: `./data/uploads`, relative to where you start the backend (`vibora-backend/data/uploads` with `./mvnw spring-boot:run`). It is created automatically and git-ignored.
+- **Docker**: the `backend` service mounts the named volume `vibora-uploads` at `/data/uploads`. It survives `docker compose --profile app up -d --build`; only `down -v` deletes it. To copy it out: `docker run --rm -v vibora_vibora-uploads:/datos -v "$PWD":/copia alpine tar czf /copia/uploads.tgz -C /datos .`
+
+Photos are re-encoded on upload, so EXIF and GPS data are lost (WebP files are stored as they are, with their metadata). They are downloaded with `GET /api/incidencias/{id}/fotos/{fotoId}`, which requires the JWT: an `<img src>` cannot send the `Authorization` header, so the frontend fetches them with `HttpClient` as a blob. The frontend nginx must allow bodies of at least 6 MB on `/api` (`client_max_body_size 6m;`).
+
+</details>
+
+<details>
+<summary><strong>Database roles for production</strong></summary>
+
+In development the app uses the container's `vibora` superuser. For production, `ops/db-roles.sql` (it does not run by itself) creates three roles: `vibora_owner` (schema owner, used by Flyway), `vibora_app` (the application: `SELECT/INSERT/UPDATE/DELETE`, no DDL, no `TRUNCATE`, and only `SELECT` and `INSERT` on `factura`) and `vibora_ro` (read only).
+
+1. As a superuser (idempotent): `psql -U postgres -d vibora -v ON_ERROR_STOP=1 -f ops/db-roles.sql`. On a **new database** run it **twice**: once before the first migration and again after the first successful migration, because `factura` and `flyway_schema_history` do not exist on the first pass and their `REVOKE` cannot be applied. Run it again after any migration that creates immutable tables.
+2. Set passwords (the script stores no secrets): `ALTER ROLE vibora_app PASSWORD '...';` and the same for `vibora_owner` and `vibora_ro`.
+3. Start the app with one connection per purpose:
+
+   ```env
+   SPRING_DATASOURCE_USERNAME=vibora_app
+   SPRING_DATASOURCE_PASSWORD=...
+   SPRING_FLYWAY_USER=vibora_owner
+   SPRING_FLYWAY_PASSWORD=...
+   ```
+
+A future migration that creates another immutable table must include its own `REVOKE UPDATE, DELETE ... FROM vibora_app`. `RolesBdTest` runs the real script against a test PostgreSQL and checks all of this. Migration `V7` adds constraints (case-insensitive unique emails, club opening hours, non-overlapping tariff bands) and fails with a clear message, applying nothing, if existing data violates them.
+
+Development backup: `node ops/backup-dev.mjs [--out <folder>]` (default `./backups`) writes `vibora-<date>.sql.gz` and, if the volume exists, `vibora-uploads-<date>.tar.gz`. Restore commands are in the script header.
+
+</details>
+
+## Getting started
+
+### Prerequisites
+
+- JDK 25
+- Node.js 24 (the version CI uses; the seed script needs Node 20 or later)
+- Docker Desktop (the database and the backend tests use containers)
+
+### Run in development
 
 ```bash
-cp .env.example .env       # edita .env: pon un VIBORA_JWT_SECRET propio (el fichero explica cómo generarlo)
+docker compose up -d db                      # PostgreSQL on 127.0.0.1:15433
+cd vibora-backend && ./mvnw spring-boot:run  # API at http://localhost:8081
+cd vibora-frontend && npm ci && npm start    # app at http://localhost:4200
+```
+
+Run each of the last two commands in its own terminal. Then load the sample data with the backend running:
+
+```bash
+node scripts/seed-dev.mjs
+```
+
+Open <http://localhost:4200> and sign in as `jugador1@vibora.test` (a player with no privileges) with the password `Vibora-dev-2026`. The seed also creates `admin@vibora.test` (club admin) and `jugador2@vibora.test` to `jugador4@vibora.test`.
+
+> [!WARNING]
+> The seed users and their password are for development only. The script creates accounts with a known password and refuses to run against any host other than `localhost`, `127.0.0.1` or `[::1]`. Never use it in a shared or production environment.
+
+The seed is idempotent. It creates "Club Vibora Demo" (09:00 to 21:00) with two courts, tariffs for every day and an open match three days ahead at 18:00 Madrid time with 2 free spots.
+
+<details>
+<summary><strong>Windows: port forbidden by the system</strong></summary>
+
+If Docker fails with `bind: An attempt was made to access a socket in a way forbidden by its access permissions`, the host port falls in a range reserved by Windows (check with `netsh interface ipv4 show excludedportrange protocol=tcp`; it changes after a reboot). Pick another port with `POSTGRES_PORT` (Compose) and the same value in `VIBORA_DB_PORT` (backend).
+
+If Maven fails with a certificate error (PKIX) behind an antivirus, export `MAVEN_OPTS="-Djavax.net.ssl.trustStoreType=Windows-ROOT"` first.
+
+</details>
+
+### Run the full stack with Docker
+
+Database, backend and frontend (nginx) run in containers. The last two live under the `app` profile, so `docker compose up -d db` still starts only PostgreSQL.
+
+```bash
+cp .env.example .env       # then edit .env and set your own VIBORA_JWT_SECRET (the file explains how to generate one)
 docker compose --profile app up -d --build
 ```
 
-La web queda en http://localhost:8088 (cambia el puerto con `FRONTEND_PORT` en `.env`). Nginx sirve la SPA y reenvía
-`/api` y `/ws` al backend, que no se publica en el host.
+The web app is at <http://localhost:8088> (change the port with `FRONTEND_PORT` in `.env`). The sample data script also works against this stack: `node scripts/seed-dev.mjs --base-url http://localhost:8088`.
 
-`VIBORA_JWT_SECRET` es obligatorio. Un servicio de comprobación (`comprobar-VIBORA_JWT_SECRET`, solo con el perfil
-`app`) corre antes que el backend y aborta el `up` al instante si el secreto está vacío, tiene menos de 32 caracteres o
-sigue siendo el marcador `CAMBIAME-...` de `.env.example`:
+`VIBORA_JWT_SECRET` is mandatory. A check service (`comprobar-VIBORA_JWT_SECRET`, only with the `app` profile) runs before the backend and aborts `up` immediately if the secret is empty, shorter than 32 characters or still the `CAMBIAME-...` placeholder from `.env.example`:
 
 ```text
 service "comprobar-VIBORA_JWT_SECRET" didn't complete successfully: exit 1
 ```
 
-El motivo exacto sale con `docker compose --profile app logs comprobar-VIBORA_JWT_SECRET`. El backend ni se crea (no
-hay bucle de reinicios), y `docker compose up -d db` no se ve afectado: no necesita `.env`. Si arrancas el backend
-saltándote la comprobación (`--no-deps`), su `ENTRYPOINT` también se niega a arrancar sin secreto.
-
-Si levantaste la app con `docker compose --profile app up -d --build --no-deps backend frontend` y luego paras el
-backend, arráncalo de nuevo con `docker start vibora-backend-1` (o repitiendo `up -d --no-deps backend`):
-`docker compose start backend` falla con `missing dependency comprobar-VIBORA_JWT_SECRET` porque el servicio de
-comprobación nunca llegó a crearse.
+Run `docker compose --profile app logs comprobar-VIBORA_JWT_SECRET` for the exact reason. To stop only the app and keep the database running:
 
 ```bash
-docker compose --profile app stop backend frontend   # para solo la app; la base de datos sigue en marcha
-docker compose --profile app up -d --build           # la vuelve a levantar (reconstruye si hay cambios)
+docker compose --profile app stop backend frontend
+docker compose --profile app up -d --build
 ```
 
-> No uses `docker compose down -v` si quieres conservar los datos: `-v` borra el volumen `vibora-pgdata` **y**
-> `vibora-uploads` (las fotos de las incidencias).
+**Careful:** `docker compose down -v` deletes the `vibora-pgdata` volume (the database) and `vibora-uploads` (incident photos).
 
-### Fotos de incidencias
+If you started the app with `--no-deps backend frontend` and later stopped the backend, restart it with `docker start vibora-backend-1`: `docker compose start backend` fails because the check service was never created.
 
-Las fotos (JPEG, PNG o WebP, hasta 5 MB y 4 por incidencia) se guardan como ficheros, no en la base de datos, en la
-carpeta `vibora.almacen.directorio`:
+### Environment variables
 
-- **Desarrollo local**: `./data/uploads` relativo a donde arranques el backend (`vibora-backend/data/uploads` con
-  `./mvnw spring-boot:run`). La carpeta se crea sola y está en `.gitignore`.
-- **Docker**: el servicio `backend` monta el volumen con nombre `vibora-uploads` en `/data/uploads`
-  (`VIBORA_ALMACEN_DIRECTORIO`), y la imagen deja esa carpeta a nombre del usuario sin privilegios. Sobrevive a
-  `docker compose --profile app up -d --build`; solo `down -v` lo borra. Para copiarlo: `docker run --rm -v
-  vibora_vibora-uploads:/datos -v "$PWD":/copia alpine tar czf /copia/uploads.tgz -C /datos .`
+Defined in `docker-compose.yml` and `application.properties`. `.env.example` explains how to generate a secret.
 
-Las fotos se recodifican al subirlas (se pierden EXIF y GPS; los WebP se guardan tal cual, con sus metadatos). Se
-descargan con `GET /api/incidencias/{id}/fotos/{fotoId}`, que exige el JWT: un `<img src>` no puede enviar la cabecera
-`Authorization`, así que el frontend debe pedirlas con `HttpClient` como blob. El nginx del frontend debe permitir
-cuerpos de al menos 6 MB en `/api` (`client_max_body_size 6m;`; por defecto nginx corta en 1 MB).
+| Variable | Required | Default | Description |
+| --- | :---: | --- | --- |
+| `VIBORA_JWT_SECRET` | Yes (Docker) | none | HMAC secret for tokens, at least 32 bytes. Outside Docker a public development secret is used: never deploy with it |
+| `POSTGRES_PORT` | No | `15433` | Host port of PostgreSQL (127.0.0.1 only) |
+| `VIBORA_DB_PORT` | No | `15433` | Port the backend connects to in local development; match `POSTGRES_PORT` |
+| `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` | No | `vibora` | Database name and credentials (development defaults) |
+| `FRONTEND_PORT` | No | `8088` | Host port of the full Docker stack |
+| `VIBORA_WEBSOCKET_ORIGENES_PERMITIDOS` | No | `http://localhost:8088` in Docker, `http://localhost:4200` locally | Browser origins allowed to open the WebSocket |
+| `VIBORA_ALMACEN_DIRECTORIO` | No | `/data/uploads` in Docker, `./data/uploads` locally | Folder for incident photos |
+| `JAVA_OPTS` | No | empty | Extra JVM options in Docker |
 
-El script de datos de ejemplo también sirve contra este stack (entra por nginx, que es `localhost`):
-`node scripts/seed-dev.mjs --base-url http://localhost:8088`.
-
-## Límites y protecciones
-
-Todos los valores son propiedades de `application.properties` (se pueden pisar con variables de entorno). Al superar un
-límite de frecuencia la API responde **429** con `{"error": "..."}` y la cabecera **`Retry-After`** (segundos).
-
-| Qué | Propiedad | Por defecto |
-|---|---|---|
-| Intentos de login por (IP, email) | `vibora.seguridad.login-max-por-email` / `login-ventana` | 5 cada 15 min (un login correcto reinicia el contador) |
-| Intentos de login por IP | `vibora.seguridad.login-max-por-ip` | 30 cada 15 min |
-| Registros por IP | `vibora.seguridad.registro-max-por-ip` / `registro-ventana` | 10 por hora |
-| Antelación máxima de una reserva | `vibora.reservas.horizonte-dias` | 60 días (día natural de Madrid) → 400 |
-| Reservas activas por jugador | `vibora.reservas.max-activas-por-usuario` | 10 (confirmadas que no han empezado) → 409; apuntarse a un partido abierto no cuenta |
-| Decodificaciones de imagen simultáneas | `vibora.almacen.decodificaciones-simultaneas` / `espera-decodificacion` | 2; si no hay hueco en 10 s → 503 |
-| Resolución máxima de una foto | `vibora.almacen.max-megapixeles` | 16 MP |
-| Fotos por persona | `vibora.almacen.cuota-diaria-por-usuario` | 40 en 24 h móviles → 429 (con `Retry-After` = segundos hasta que la foto más antigua salga de la ventana, máx. 86400) |
-| Temporales huérfanos del almacén | `vibora.almacen.limpieza-tmp-horas` / `limpieza-tmp-cron` | se borran los `tmp-*` de más de 1 h, cada hora |
-| Sesiones WebSocket por persona | `vibora.websocket.max-sesiones-por-usuario` | 10 (la siguiente recibe ERROR `Demasiadas conexiones`) |
-| Invitaciones del personal pendientes por club | `vibora.personal.max-pendientes-por-club` | 50 → 429 (sin `Retry-After`) |
-| Invitaciones creadas por club en 24 h | `vibora.personal.max-invitaciones-por-club-24h` | 30 → 429 (sin `Retry-After`) |
-
-Además, nginx limita por IP `/api/auth/login` (10 peticiones/min, ráfaga 5) y `/api/auth/registro` (5/min, ráfaga 3) con un 429 en
-JSON, sin afectar al resto de `/api/`.
-
-La cuota de fotos es una **cuota sobre las fotos existentes en 24 h**: cuenta las filas subidas por la persona en las últimas
-24 horas, así que subir, borrar y volver a subir libera cupo (a propósito: no es un contador de subidas históricas). Se
-comprueba al principio de la petición (antes de decodificar nada) y otra vez, ya con el usuario bloqueado, al guardar.
-
-**Topología y limitación por IP (importante).** Los límites por IP (zonas `limit_req` de nginx y los contadores por IP
-del backend) solo distinguen clientes si nginx ve su IP real. Con el stack por defecto de Docker Desktop (NAT), en una wifi
-compartida o detrás de un balanceador/terminador TLS, **todos los clientes llegan con la misma IP** (la de la pasarela
-o el balanceador) y comparten un único cubo: un solo origen insistente puede agotar el límite y dejar fuera a los demás. Dos
-palancas, sin debilitar la protección por defecto:
-
-- **IP real en nginx** (opcional, desactivado por defecto): monta un fichero `*.conf` en `/etc/nginx/realip/` del contenedor
-  `frontend` con el rango del proxy de confianza (nunca `0.0.0.0/0` en producción, o cualquiera podría falsear su IP):
-
-  ```
-  set_real_ip_from 10.0.0.0/8;          # balanceador / terminador TLS de confianza
-  real_ip_header X-Forwarded-For;
-  real_ip_recursive on;
-  ```
-
-  (en compose: `volumes: ["./ops/realip.conf:/etc/nginx/realip/realip.conf:ro"]` en el servicio `frontend`). Con él, nginx
-  y el backend (que recibe la IP resultante en `X-Forwarded-For`) cuentan por cliente real. Sin el fichero no cambia nada.
-- **Subir los umbrales** en entornos donde la IP no se pueda distinguir (demos, red compartida): `vibora.seguridad.login-max-por-ip`,
-  `vibora.seguridad.registro-max-por-ip` (variables `VIBORA_SEGURIDAD_LOGIN_MAX_POR_IP`, ...) y, en nginx, los `rate=`/`burst=`
-  de las zonas `auth_login` y `auth_registro`. El límite por (IP, email) protege cada cuenta aunque se suban los de IP.
-- Las IPv6 se agrupan por /64 (una sola persona suele controlar un /64 entero) y `::ffff:a.b.c.d` cuenta como la IPv4.
-
-**El limitador de login/registro es en memoria y por instancia**: con más de una instancia del backend cada una cuenta
-por separado (el límite real se multiplica). Si algún día se despliega más de una, hay que moverlo a Redis (o similar).
-La IP del cliente es la del socket; detrás de nginx, Tomcat usa `X-Forwarded-For` solo si quien conecta es un proxy
-interno (`server.forward-headers-strategy=native`) y nginx la sobrescribe, así que un cliente no puede falsearla.
-
-## Invitaciones del personal
-
-Nadie pasa a ser monitor o personal de mantenimiento sin aceptarlo. El administrador del club **invita a un correo** y la
-persona decide:
-
-1. `POST /api/clubes/{clubId}/invitaciones` `{email, rol}` (`MONITOR` o `MANTENIMIENTO`; solo el administrador del club).
-   Responde **siempre `202`** con `{"mensaje":"Si el correo es válido, la persona recibirá la invitación."}` tanto si el
-   correo está registrado y libre, ya está en otro club, ya es de este club o no está registrado: **no hay enumeración de
-   cuentas** (nada de 404/409 que delate quién existe). Los únicos errores visibles son 400 (datos), 403/404 (permisos/club)
-   y 429 (topes). Invitar dos veces al mismo correo mientras la primera está viva no crea nada nuevo (idempotente). Si el
-   correo es de un usuario registrado recibe un aviso `INVITACION_RECIBIDA`; si se registra después, recibe un aviso con las
-   invitaciones que ya tenía pendientes. Ese aviso no se repite mientras el anterior siga sin leer (24 h), para que
-   invitar-cancelar-invitar no llene la bandeja; el nombre del club se recorta a 60 puntos de código.
-
-   La respuesta es idéntica en estado y cuerpo, pero el tiempo de respuesta de la rama "correo registrado" puede diferir en
-   unos milisegundos (crear fila y aviso): es un oráculo débil, mitigado por los topes diarios por club.
-2. `GET /api/clubes/{clubId}/invitaciones?estado=` lista las del club (más recientes primero, máx. 100) y
-   `DELETE /api/clubes/{clubId}/invitaciones/{id}` cancela una pendiente (204; ya cancelada: 204; otro estado: 409).
-3. La persona invitada ve `GET /api/invitaciones/mias` y decide con `POST /api/invitaciones/{id}/aceptar`
-   (`{requiereNuevoLogin: true, clubNombre, rol}`: su token sigue diciendo `JUGADOR`, debe iniciar sesión otra vez) o
-   `POST /api/invitaciones/{id}/rechazar` (204). Solo el destinatario (identificado por el correo de su fila en la BD, no
-   por el token) puede hacerlo; cualquier otro recibe 404. Al aceptar se avisa a los administradores del club; las
-   invitaciones de **otros** clubes no se tocan (cancelarlas delataría al otro administrador que el correo está registrado y
-   se unió a otro club): siguen pendientes hasta caducar y aceptarlas después da 409 "Ya perteneces a un club". Mientras la
-   persona ya pertenece a un club, `mias` devuelve una lista vacía.
-4. El personal puede **abandonar el club** con `POST /api/personal/salir` (204; el administrador no puede: 409). Tiene el
-   mismo efecto que la retirada por el administrador (`DELETE /api/clubes/{clubId}/personal/{usuarioId}`, que sigue igual):
-   vuelve a `JUGADOR` sin club y sus incidencias activas quedan abiertas y sin asignar.
-
-Una invitación **caduca a los 14 días** (`vibora.personal.invitacion-dias`); un barrido diario (03:45, Madrid;
-`vibora.personal.caducidad-cron`) marca como `CADUCADA` las vencidas, y también se hace al vuelo al aceptar, listar o volver a
-invitar. Topes por club (429): 50 pendientes (`vibora.personal.max-pendientes-por-club`) y 30 creadas en 24 h
-(`vibora.personal.max-invitaciones-por-club-24h`).
-
-**Se eliminó `POST /api/clubes/{clubId}/personal`**: convertía en personal, sin consentimiento y sin posibilidad de deshacerlo, a
-cualquier usuario sin club, y sus 404/409 revelaban qué correos estaban registrados. `GET` y `DELETE` de esa ruta no cambian.
-
-## Roles de base de datos (producción)
-
-En desarrollo la aplicación usa el usuario `vibora` de la base (superusuario del contenedor): no se cambia. En producción
-conviene el menor privilegio. `ops/db-roles.sql` (no se ejecuta solo) crea tres roles: `vibora_owner` (dueño del esquema,
-para las migraciones de Flyway), `vibora_app` (la aplicación: `SELECT/INSERT/UPDATE/DELETE`, sin DDL, sin `TRUNCATE`, sin
-poder desactivar triggers; en `factura` solo `SELECT` e `INSERT`) y `vibora_ro` (solo lectura). Los privilegios por defecto
-hacen que las tablas que cree `vibora_owner` en migraciones futuras lleguen ya concedidas.
-
-1. Como superusuario (es idempotente): `psql -U postgres -d vibora -v ON_ERROR_STOP=1 -f ops/db-roles.sql`. En una **base
-   nueva** el script se ejecuta **dos veces**: una antes de la primera migración (crea roles y extensión) y **otra vez después
-   de la primera migración correcta**, porque `factura` y `flyway_schema_history` no existen en la primera pasada y sus
-   `REVOKE` no se pueden aplicar; hasta la segunda pasada la aplicación tendría `UPDATE`/`DELETE` sobre ellas. En una base
-   existente basta una vez. Repítelo también tras migraciones que creen tablas inmutables.
-2. Poner contraseñas (el script no guarda secretos): `ALTER ROLE vibora_app PASSWORD '...';` y lo mismo con `vibora_owner` y `vibora_ro`.
-3. Arrancar la aplicación con una conexión para cada cosa:
-
-   ```
-   SPRING_DATASOURCE_USERNAME=vibora_app    SPRING_DATASOURCE_PASSWORD=...   # la aplicación
-   SPRING_FLYWAY_USER=vibora_owner          SPRING_FLYWAY_PASSWORD=...       # las migraciones
-   ```
-
-Si una migración futura crea otra tabla inmutable, debe incluir su propio `REVOKE UPDATE, DELETE ... FROM vibora_app`.
-`RolesBdTest` ejecuta el script real contra un PostgreSQL de prueba y comprueba todo lo anterior.
-
-La migración V7 añade restricciones (emails únicos sin mayúsculas, horario del club, franjas de tarifa sin solape) y falla
-con un mensaje claro, sin aplicar nada, si la base ya contiene datos que las violan.
-
-### Copia de seguridad del entorno de desarrollo
-
-`node ops/backup-dev.mjs [--out <carpeta>]` (por defecto `./backups`) guarda `vibora-<fecha>.sql.gz` (pg_dump del contenedor
-`vibora-postgres`, solo lectura) y `vibora-uploads-<fecha>.tar.gz` (volumen de fotos, si existe). No sobrescribe nada; los
-comandos para restaurar están en la cabecera del script.
-
-## Integración continua (definida, todavía sin ejecutar)
-
-`.github/workflows/ci.yml` está pensado para ejecutarse en cada push y pull request a `main`, pero **aún no se ha
-ejecutado nunca en GitHub**: la cuenta tiene un bloqueo de facturación que impide arrancar los jobs. Los comandos que
-usa se han comprobado en local (véase «Tests»); el flujo de Actions en sí no está probado. Estaría formado por:
-
-- **backend**: `./mvnw verify` con Java 25 (los tests usan Testcontainers).
-- **frontend**: `ng test` y `ng build --configuration production` con Node 24.
-- **scripts**: tests del helper de fechas del seed.
-- **docker**: construye las dos imágenes, levanta el stack con `docker compose --profile app` y comprueba por nginx
-  que la web responde, que una ruta de la SPA devuelve `index.html`, que `/api/auth/me` da 401 y que
-  `/actuator/health` no queda publicado.
-
-## Datos de ejemplo para desarrollo
-
-Con el backend en marcha:
+## Testing and verification
 
 ```bash
-node scripts/seed-dev.mjs [--base-url http://localhost:8081]
+cd vibora-backend && ./mvnw test                  # needs Docker (Testcontainers); 1,321 tests as of November 2026
+cd vibora-frontend && npx ng test --watch=false   # Vitest; 1,646 tests
+cd vibora-frontend && npm run test:csp            # checks the generated CSP
+cd vibora-frontend && npm run test:tema           # checks the initial theme script
+cd vibora-frontend && npm run test:marca          # checks icons, theme-color and logo animation
+cd vibora-frontend && npm run test:colores        # no literal colours outside the theme tokens
+node --test "scripts/lib/*.test.mjs"              # date helper of the seed script
 ```
 
-Requiere Node 20 o superior. Es idempotente: se puede repetir sin duplicar datos. Crea el club "Club Vibora Demo"
-(09:00-21:00) con dos pistas, tarifas para todos los días y un partido abierto a 3 días vista, a las 18:00 (hora de
-Madrid), con 2 plazas libres.
+The backend suite takes several minutes because it starts a real PostgreSQL container.
 
-| Usuario                 | Rol        |
-| ----------------------- | ---------- |
-| `admin@vibora.test`     | ADMIN_CLUB |
-| `jugador1@vibora.test` (organiza el partido) | JUGADOR |
-| `jugador2@vibora.test` (apuntado al partido) | JUGADOR |
-| `jugador3@vibora.test`, `jugador4@vibora.test` | JUGADOR |
+1. **Main case**: sign in as `jugador1@vibora.test`, open the agenda and book a free slot → the booking appears under "Mis reservas" and the slot shows as taken.
+2. **Edge case**: eight players book the same slot at the same instant → exactly one `201` and seven `409`. [`ReservaConcurrenciaTests`](./vibora-backend/src/test/java/com/vibora/reserva/ReservaConcurrenciaTests.java) logs in eight users, releases eight threads together with a barrier, repeats this five times and also checks that only one confirmed booking exists afterwards. [`ReservaCupoConcurrenciaTests`](./vibora-backend/src/test/java/com/vibora/reserva/ReservaCupoConcurrenciaTests.java) does the same for the cap of active bookings: fifteen simultaneous bookings of different slots with a cap of ten give 10 created and 5 conflicts.
 
-Contraseña de todos: `Vibora-dev-2026`.
+## Status and roadmap
 
-> **Solo desarrollo.** El script crea usuarios con una contraseña conocida y se niega a ejecutarse contra hosts que no
-> sean `localhost`, `127.0.0.1` o `[::1]`. No lo uses en ningún entorno compartido ni de producción.
+**Status:** active, in development.
 
-Tests del helper de fechas del script: `node --test "scripts/lib/*.test.mjs"`.
+CI is defined in [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) (backend tests, frontend tests and guards, seed script tests, and a Docker smoke test through nginx), but it has never run on GitHub: the account has a billing lock that prevents jobs from starting. The commands it uses have been run locally.
+
+- [ ] Phase 4: AI matchmaking
+- [ ] OpenAPI / Swagger documentation of the API
+- [ ] Server-side token revocation on logout and token refresh
+- [ ] Anti-abuse limits shared between instances (for example in Redis)
+- [ ] Run CI on GitHub
+
+## Credits
+
+Typography: [Manrope](https://fontsource.org/fonts/manrope) (self-hosted, SIL Open Font License). Icons: Material Symbols from Google Fonts. The Víbora logo is original.
+
+## Author
+
+Built by **Christian Oller**. The idea, the domain design and the decisions are mine; the code was written with AI coding agents that I directed, reviewed and verified.
+
+[GitHub](https://github.com/christianoller8)
+
+## License
+
+Distributed under the MIT License. See [LICENSE](./LICENSE).
+
+<p align="right"><a href="#readme-top">Back to top</a></p>
