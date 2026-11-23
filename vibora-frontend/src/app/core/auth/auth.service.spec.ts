@@ -15,7 +15,7 @@ import {
   segundosDesdeAhora,
 } from '../../testing/test-utils';
 import { adminClubGuard } from './auth.guard';
-import { AuthService, CLAVE_TOKEN } from './auth.service';
+import { AuthService, CLAVE_SESION } from './auth.service';
 
 describe('AuthService', () => {
   let http: HttpTestingController;
@@ -27,6 +27,13 @@ describe('AuthService', () => {
     http = TestBed.inject(HttpTestingController);
     return TestBed.inject(AuthService);
   }
+
+  /** El login enlaza /me tras una promesa (lock + firstValueFrom): se cede el turno para que la petición salga. */
+  const cederTurno = async (): Promise<void> => {
+    for (let i = 0; i < 10; i++) {
+      await Promise.resolve();
+    }
+  };
 
   beforeEach(() => localStorage.clear());
   afterEach(() => localStorage.clear());
@@ -49,12 +56,13 @@ describe('AuthService', () => {
       expect(login.request.method).toBe('POST');
       expect(login.request.body).toEqual({ email: 'ana@vibora.es', password: 'secreto123' });
       login.flush({ token, tipo: 'Bearer', expiraEn: '2099-01-01T00:00:00Z' });
+      await cederTurno();
 
       http.expectOne('/api/auth/me').flush(USUARIO_JUGADOR);
 
       expect(await resultado).toEqual(USUARIO_JUGADOR);
       expect(auth.token()).toBe(token);
-      expect(localStorage.getItem(CLAVE_TOKEN)).toBe(token);
+      expect(localStorage.getItem(CLAVE_SESION)).toBe('1');
       expect(auth.usuario()).toEqual(USUARIO_JUGADOR);
       expect(auth.estaAutenticado()).toBe(true);
       expect(auth.rol()).toBe('JUGADOR');
@@ -70,7 +78,7 @@ describe('AuthService', () => {
 
       await expect(resultado).rejects.toMatchObject({ status: 401 });
       expect(auth.estaAutenticado()).toBe(false);
-      expect(localStorage.getItem(CLAVE_TOKEN)).toBeNull();
+      expect(localStorage.getItem(CLAVE_SESION)).toBeNull();
     });
 
     it('limpia la sesión si /me falla justo después del login', async () => {
@@ -79,18 +87,19 @@ describe('AuthService', () => {
 
       const resultado = firstValueFrom(auth.login('ana@vibora.es', 'secreto123'));
       http.expectOne('/api/auth/login').flush({ token, tipo: 'Bearer', expiraEn: 'x' });
+      await cederTurno();
       http.expectOne('/api/auth/me').flush({}, { status: 500, statusText: 'Server Error' });
 
       await expect(resultado).rejects.toMatchObject({ status: 500 });
       expect(auth.estaAutenticado()).toBe(false);
-      expect(localStorage.getItem(CLAVE_TOKEN)).toBeNull();
+      expect(localStorage.getItem(CLAVE_SESION)).toBeNull();
     });
   });
 
   describe('club del usuario', () => {
     async function conUsuario(usuario: Usuario): Promise<AuthService> {
-      localStorage.setItem(CLAVE_TOKEN, crearJwt(segundosDesdeAhora(3600)));
       const auth = crearServicio();
+      auth.token.set(crearJwt(segundosDesdeAhora(3600)));
       const carga = firstValueFrom(auth.cargarUsuario());
       http.expectOne('/api/auth/me').flush(usuario);
       await carga;
@@ -180,9 +189,10 @@ describe('AuthService', () => {
   });
 
   describe('logout', () => {
-    it('borra token, usuario y almacenamiento', async () => {
-      localStorage.setItem(CLAVE_TOKEN, crearJwt(segundosDesdeAhora(3600)));
+    it('borra token, usuario y pista de sesión', async () => {
+      localStorage.setItem(CLAVE_SESION, '1');
       const auth = crearServicio();
+      auth.token.set(crearJwt(segundosDesdeAhora(3600)));
       const carga = firstValueFrom(auth.cargarUsuario());
       http.expectOne('/api/auth/me').flush(USUARIO_JUGADOR);
       await carga;
@@ -192,7 +202,7 @@ describe('AuthService', () => {
       expect(auth.token()).toBeNull();
       expect(auth.usuario()).toBeNull();
       expect(auth.estaAutenticado()).toBe(false);
-      expect(localStorage.getItem(CLAVE_TOKEN)).toBeNull();
+      expect(localStorage.getItem(CLAVE_SESION)).toBeNull();
     });
   });
 
@@ -204,27 +214,9 @@ describe('AuthService', () => {
       http.expectNone('/api/auth/me');
     });
 
-    it('descarta un token caducado sin llamar al backend', async () => {
-      localStorage.setItem(CLAVE_TOKEN, crearJwt(segundosDesdeAhora(-60)));
-      const auth = crearServicio();
-
-      expect(auth.token()).toBeNull();
-      expect(localStorage.getItem(CLAVE_TOKEN)).toBeNull();
-      expect(await firstValueFrom(auth.cargarUsuario())).toBeNull();
-      http.expectNone('/api/auth/me');
-    });
-
-    it('descarta un token ilegible', () => {
-      localStorage.setItem(CLAVE_TOKEN, 'basura');
-      const auth = crearServicio();
-
-      expect(auth.estaAutenticado()).toBe(false);
-      expect(localStorage.getItem(CLAVE_TOKEN)).toBeNull();
-    });
-
     it('restaura el usuario con /me cuando el token es válido', async () => {
-      localStorage.setItem(CLAVE_TOKEN, crearJwt(segundosDesdeAhora(3600)));
       const auth = crearServicio();
+      auth.token.set(crearJwt(segundosDesdeAhora(3600)));
 
       const carga = firstValueFrom(auth.cargarUsuario());
       http.expectOne('/api/auth/me').flush(USUARIO_JUGADOR);
@@ -235,8 +227,9 @@ describe('AuthService', () => {
     });
 
     it('cierra la sesión (sin romper el arranque) si /me responde 401', async () => {
-      localStorage.setItem(CLAVE_TOKEN, crearJwt(segundosDesdeAhora(3600)));
+      localStorage.setItem(CLAVE_SESION, '1');
       const auth = crearServicio();
+      auth.token.set(crearJwt(segundosDesdeAhora(3600)));
 
       const carga = firstValueFrom(auth.cargarUsuario());
       http.expectOne('/api/auth/me').flush({}, { status: 401, statusText: 'Unauthorized' });
@@ -244,12 +237,13 @@ describe('AuthService', () => {
       expect(await carga).toBeNull();
       expect(auth.estaAutenticado()).toBe(false);
       expect(auth.sesionIncierta()).toBe(false);
-      expect(localStorage.getItem(CLAVE_TOKEN)).toBeNull();
+      expect(localStorage.getItem(CLAVE_SESION)).toBeNull();
     });
 
     it('cierra la sesión si /me responde 403', async () => {
-      localStorage.setItem(CLAVE_TOKEN, crearJwt(segundosDesdeAhora(3600)));
+      localStorage.setItem(CLAVE_SESION, '1');
       const auth = crearServicio();
+      auth.token.set(crearJwt(segundosDesdeAhora(3600)));
 
       const carga = firstValueFrom(auth.cargarUsuario());
       http.expectOne('/api/auth/me').flush({}, { status: 403, statusText: 'Forbidden' });
@@ -257,7 +251,7 @@ describe('AuthService', () => {
       expect(await carga).toBeNull();
       expect(auth.estaAutenticado()).toBe(false);
       expect(auth.sesionIncierta()).toBe(false);
-      expect(localStorage.getItem(CLAVE_TOKEN)).toBeNull();
+      expect(localStorage.getItem(CLAVE_SESION)).toBeNull();
     });
   });
 
@@ -281,8 +275,8 @@ describe('AuthService', () => {
       fallo: (peticion: TestRequest) => void,
     ): Promise<{ auth: AuthService; router: Router; token: string }> {
       const token = TOKEN();
-      localStorage.setItem(CLAVE_TOKEN, token);
       const { auth, router } = crearConRouter();
+      auth.token.set(token);
       const carga = firstValueFrom(auth.cargarUsuario());
       fallo(http.expectOne('/api/auth/me'));
       expect(await carga).toBeNull(); // el arranque nunca falla ni se queda colgado
@@ -308,7 +302,6 @@ describe('AuthService', () => {
       const { auth, token } = await arrancarFallando(fallo);
 
       expect(auth.token()).toBe(token);
-      expect(localStorage.getItem(CLAVE_TOKEN)).toBe(token);
       expect(auth.usuario()).toBeNull();
       expect(auth.estaAutenticado()).toBe(true);
       expect(auth.sesionIncierta()).toBe(true);
@@ -317,8 +310,8 @@ describe('AuthService', () => {
 
     it('si /me no contesta a tiempo (timeout) también conserva el token y marca la incertidumbre', async () => {
       vi.useFakeTimers();
-      localStorage.setItem(CLAVE_TOKEN, TOKEN());
       const { auth } = crearConRouter();
+      auth.token.set(TOKEN());
 
       const carga = firstValueFrom(auth.cargarUsuario());
       http.expectOne('/api/auth/me'); // nadie responde
@@ -353,8 +346,8 @@ describe('AuthService', () => {
 
     it('reintenta solo con retardo creciente (2 s, 4 s, ... tope de 30 s)', async () => {
       vi.useFakeTimers();
-      localStorage.setItem(CLAVE_TOKEN, TOKEN());
       const { auth } = crearConRouter();
+      auth.token.set(TOKEN());
       const carga = firstValueFrom(auth.cargarUsuario());
       estado(503)(http.expectOne('/api/auth/me'));
       await carga;
@@ -370,8 +363,9 @@ describe('AuthService', () => {
 
     it('un reintento con 401 cierra la sesión y deja de reintentar', async () => {
       vi.useFakeTimers();
-      localStorage.setItem(CLAVE_TOKEN, TOKEN());
+      localStorage.setItem(CLAVE_SESION, '1');
       const { auth } = crearConRouter();
+      auth.token.set(TOKEN());
       const carga = firstValueFrom(auth.cargarUsuario());
       estado(503)(http.expectOne('/api/auth/me'));
       await carga;
@@ -383,18 +377,19 @@ describe('AuthService', () => {
       http.expectNone('/api/auth/me');
       expect(auth.estaAutenticado()).toBe(false);
       expect(auth.sesionIncierta()).toBe(false);
-      expect(localStorage.getItem(CLAVE_TOKEN)).toBeNull();
+      expect(localStorage.getItem(CLAVE_SESION)).toBeNull();
     });
 
     it('al cerrar sesión se cancelan los reintentos', async () => {
       vi.useFakeTimers();
-      localStorage.setItem(CLAVE_TOKEN, TOKEN());
       const { auth } = crearConRouter();
+      auth.token.set(TOKEN());
       const carga = firstValueFrom(auth.cargarUsuario());
       estado(503)(http.expectOne('/api/auth/me'));
       await carga;
 
       auth.logout();
+      http.match('/api/auth/cerrar-sesion');
       await vi.advanceTimersByTimeAsync(60_000);
       window.dispatchEvent(new Event('online'));
 
@@ -413,8 +408,8 @@ describe('AuthService', () => {
     });
 
     it('sin sesión incierta, reintentarCarga no pide /me', async () => {
-      localStorage.setItem(CLAVE_TOKEN, TOKEN());
       const { auth, router } = crearConRouter();
+      auth.token.set(TOKEN());
       auth.usuario.set(USUARIO_JUGADOR);
 
       auth.reintentarCarga();
@@ -427,8 +422,8 @@ describe('AuthService', () => {
     describe('respuesta tardía de un /me de otra sesión', () => {
       /** Arranca con 503 y lanza un reintento (evento online) que se queda en vuelo. */
       async function conReintentoEnVuelo(): Promise<{ auth: AuthService; reintento: TestRequest }> {
-        localStorage.setItem(CLAVE_TOKEN, crearJwt(segundosDesdeAhora(3600)));
         const { auth } = crearConRouter();
+        auth.token.set(crearJwt(segundosDesdeAhora(3600)));
         const carga = firstValueFrom(auth.cargarUsuario());
         estado(503)(http.expectOne('/api/auth/me'));
         await carga;
@@ -472,6 +467,7 @@ describe('AuthService', () => {
           tipo: 'Bearer',
           expiraEn: 'x',
         });
+        await cederTurno();
         const meDeLogin = http.expectOne('/api/auth/me'); // el reintento viejo sigue abierto, pero ya está tomado arriba
         reintento.flush(USUARIO_ADMIN); // llega tarde, con los datos del usuario anterior
         expect(auth.usuario()).toBeNull();
@@ -490,12 +486,12 @@ describe('AuthService', () => {
       ];
 
       async function arrancarEnClub(): Promise<{ auth: AuthService; router: Router }> {
-        localStorage.setItem(CLAVE_TOKEN, TOKEN());
         TestBed.configureTestingModule({
           providers: [provideRouter(guardados), provideHttpClient(), provideHttpClientTesting()],
         });
         http = TestBed.inject(HttpTestingController);
         const auth = TestBed.inject(AuthService);
+        auth.token.set(TOKEN());
         const router = TestBed.inject(Router);
         const carga = firstValueFrom(auth.cargarUsuario());
         estado(503)(http.expectOne('/api/auth/me'));
@@ -591,12 +587,12 @@ describe('AuthService', () => {
     it('un servicio con sesión incierta no deja listeners online tras destruirse', async () => {
       const alta = vi.spyOn(window, 'addEventListener');
       const baja = vi.spyOn(window, 'removeEventListener');
-      localStorage.setItem(CLAVE_TOKEN, crearJwt(segundosDesdeAhora(3600)));
       TestBed.configureTestingModule({
         providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
       });
       http = TestBed.inject(HttpTestingController);
       const auth = TestBed.inject(AuthService);
+      auth.token.set(crearJwt(segundosDesdeAhora(3600)));
       const carga = firstValueFrom(auth.cargarUsuario());
       http.expectOne('/api/auth/me').flush({}, { status: 503, statusText: 'Error' });
       await carga;

@@ -1,10 +1,11 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { NEVER, of } from 'rxjs';
 import { TipoNotificacion } from '../../shared/models/notificacion.model';
 import { crearAuthFalso, crearNotificacion } from '../../testing/test-utils';
-import { AuthService } from '../auth/auth.service';
+import { AuthService, SesionCerradaError } from '../auth/auth.service';
 import {
   ClienteTiempoReal,
   FABRICA_CLIENTE_TIEMPO_REAL,
@@ -202,6 +203,20 @@ describe('TiempoRealService', () => {
       expect(opciones[1].cabeceras).toEqual({ Authorization: 'Bearer jwt-2' });
     });
 
+    it('al renovarse el token (refresco) reconecta con el token nuevo en las cabeceras del CONNECT', async () => {
+      crear();
+      await asentar();
+
+      auth.token.set('jwt-renovado'); // refresco proactivo o reactivo: el token cambia sin pasar por null
+      TestBed.tick();
+      await asentar();
+
+      expect(clientes[0].desactivar).toHaveBeenCalledTimes(1);
+      expect(fabrica).toHaveBeenCalledTimes(2);
+      expect(opciones[1].cabeceras).toEqual({ Authorization: 'Bearer jwt-renovado' });
+      expect(clientes[1].activar).toHaveBeenCalledTimes(1);
+    });
+
     it('si cierra sesión antes de que la librería cargue, no llega a activar el cliente', async () => {
       crear(true, true);
       auth.token.set(null);
@@ -230,29 +245,157 @@ describe('TiempoRealService', () => {
   });
 
   describe('token rechazado por el servidor', () => {
-    it('un ERROR "No autenticado" cierra la sesión, desconecta y lleva a /login sin reconectar', async () => {
+    it('un ERROR "No autenticado" refresca el token UNA vez y reconecta con el token nuevo', async () => {
       crear();
+      auth.refrescar.mockImplementation(async () => {
+        auth.token.set('jwt-refrescado');
+        return 'jwt-refrescado';
+      });
       await asentar();
 
       opciones[0].alErrorStomp('No autenticado');
+      await asentar();
       TestBed.tick();
       await asentar();
 
+      expect(auth.refrescar).toHaveBeenCalledTimes(1);
       expect(clientes[0].desactivar).toHaveBeenCalled();
-      expect(auth.logout).toHaveBeenCalledTimes(1);
-      expect(router.navigate).toHaveBeenCalledWith(['/login'], {
-        queryParams: { redirectTo: '/deudas' },
-      });
+      expect(fabrica).toHaveBeenCalledTimes(2);
+      expect(opciones[1].cabeceras).toEqual({ Authorization: 'Bearer jwt-refrescado' });
+      expect(auth.expirarSesion).not.toHaveBeenCalled();
+    });
+
+    it('si el refresco da 401 la sesión termina (expirarSesion) y no reconecta', async () => {
+      crear();
+      auth.refrescar.mockRejectedValue(new HttpErrorResponse({ status: 401 }));
+      await asentar();
+
+      opciones[0].alErrorStomp('No autenticado');
+      await asentar();
+      TestBed.tick();
+
+      expect(auth.expirarSesion).toHaveBeenCalledTimes(1);
       expect(fabrica).toHaveBeenCalledTimes(1);
     });
 
-    it('otro tipo de error STOMP no cierra la sesión', async () => {
+    it('si el refresco da 429 o falla la red NO termina la sesión', async () => {
+      crear();
+      auth.refrescar.mockRejectedValue(new HttpErrorResponse({ status: 429 }));
+      await asentar();
+
+      opciones[0].alErrorStomp('No autenticado');
+      await asentar();
+
+      expect(auth.expirarSesion).not.toHaveBeenCalled();
+      expect(auth.logout).not.toHaveBeenCalled();
+    });
+
+    it('si el servidor vuelve a rechazar el token recién refrescado no entra en bucle: termina la sesión', async () => {
+      crear();
+      auth.refrescar.mockImplementation(async () => {
+        auth.token.set('jwt-refrescado');
+        return 'jwt-refrescado';
+      });
+      await asentar();
+      opciones[0].alErrorStomp('No autenticado');
+      await asentar();
+      TestBed.tick();
+      await asentar();
+
+      opciones[1].alErrorStomp('No autenticado'); // la conexión nueva también es rechazada
+      await asentar();
+
+      expect(auth.refrescar).toHaveBeenCalledTimes(1);
+      // logout (revoca en el servidor), no expirarSesion; y se lleva al login conservando el destino
+      expect(auth.logout).toHaveBeenCalledTimes(1);
+      expect(auth.expirarSesion).not.toHaveBeenCalled();
+      expect(router.navigate).toHaveBeenCalledWith(['/login'], {
+        queryParams: { redirectTo: '/deudas' },
+      });
+    });
+
+    it('si el refresco devuelve el MISMO token rechazado, reconecta explícitamente y un nuevo rechazo termina la sesión', async () => {
+      crear();
+      auth.refrescar.mockImplementation(async () => 'jwt-de-prueba'); // la señal no cambia: el efecto no reconecta
+      await asentar();
+
+      opciones[0].alErrorStomp('No autenticado');
+      await asentar();
+
+      expect(fabrica).toHaveBeenCalledTimes(2);
+      expect(opciones[1].cabeceras).toEqual({ Authorization: 'Bearer jwt-de-prueba' });
+
+      opciones[1].alErrorStomp('No autenticado');
+      await asentar();
+
+      expect(auth.refrescar).toHaveBeenCalledTimes(1);
+      expect(auth.logout).toHaveBeenCalledTimes(1);
+    });
+
+    it('una conexión que sí se establece olvida el rechazo anterior: un rechazo posterior vuelve a refrescar', async () => {
+      crear();
+      let n = 0;
+      auth.refrescar.mockImplementation(async () => {
+        n++;
+        auth.token.set(`jwt-refrescado-${n}`);
+        return `jwt-refrescado-${n}`;
+      });
+      await asentar();
+      opciones[0].alErrorStomp('No autenticado');
+      await asentar();
+      TestBed.tick();
+      await asentar();
+      opciones[1].alConectar(); // CONNECT correcto con el token refrescado
+
+      opciones[1].alErrorStomp('No autenticado'); // más tarde el token vuelve a caducar
+      await asentar();
+
+      expect(auth.refrescar).toHaveBeenCalledTimes(2);
+      expect(auth.expirarSesion).not.toHaveBeenCalled();
+    });
+
+    it('el segundo rechazo no depende del orden de microtareas: aunque llegue antes de que resuelva refrescar(), termina la sesión', async () => {
+      crear();
+      auth.refrescar.mockImplementation(async () => {
+        auth.token.set('jwt-refrescado');
+        return 'jwt-refrescado';
+      });
+      await asentar();
+
+      opciones[0].alErrorStomp('No autenticado');
+      TestBed.tick(); // el efecto reconecta de forma síncrona, antes de que corra el .then de refrescar()
+      expect(opciones).toHaveLength(2);
+      opciones[1].alErrorStomp('No autenticado');
+      await asentar();
+
+      expect(auth.refrescar).toHaveBeenCalledTimes(1);
+      expect(auth.logout).toHaveBeenCalledTimes(1);
+    });
+
+    it('si refrescar() rechaza porque la sesión se cerró, el cambio de token posterior reconecta (no se queda sin socket)', async () => {
+      crear();
+      auth.refrescar.mockRejectedValue(new SesionCerradaError());
+      await asentar();
+
+      opciones[0].alErrorStomp('No autenticado');
+      await asentar();
+      expect(auth.expirarSesion).not.toHaveBeenCalled();
+      auth.token.set('jwt-sesion-nueva'); // un login nuevo cambia el token
+      TestBed.tick();
+      await asentar();
+
+      expect(fabrica).toHaveBeenCalledTimes(2);
+      expect(opciones[1].cabeceras).toEqual({ Authorization: 'Bearer jwt-sesion-nueva' });
+    });
+
+    it('otro tipo de error STOMP no refresca ni cierra la sesión', async () => {
       crear();
       await asentar();
 
       opciones[0].alErrorStomp('Acceso denegado');
 
-      expect(auth.logout).not.toHaveBeenCalled();
+      expect(auth.refrescar).not.toHaveBeenCalled();
+      expect(auth.expirarSesion).not.toHaveBeenCalled();
       expect(clientes[0].desactivar).not.toHaveBeenCalled();
     });
   });

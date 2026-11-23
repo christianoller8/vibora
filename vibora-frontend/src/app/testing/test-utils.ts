@@ -114,5 +114,7 @@ export function crearAuthFalso(usuario: Usuario | null = USUARIO_JUGADOR) {
     login: vi.fn(),
     registro: vi.fn(),
     logout: vi.fn(),
+    refrescar: vi.fn(),
+    expirarSesion: vi.fn(),
   };
 }

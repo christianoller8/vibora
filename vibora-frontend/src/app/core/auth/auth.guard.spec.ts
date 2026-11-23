@@ -23,16 +23,16 @@ import {
   redirigirRaiz,
   sinClubGuard,
 } from './auth.guard';
-import { AuthService, CLAVE_TOKEN } from './auth.service';
+import { AuthService } from './auth.service';
 
 describe('guards de autenticación', () => {
   function ejecutar(guard: CanActivateFn, url: string, conSesion: boolean): boolean | string {
-    if (conSesion) {
-      localStorage.setItem(CLAVE_TOKEN, crearJwt(segundosDesdeAhora(3600)));
-    }
     TestBed.configureTestingModule({
       providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
     });
+    if (conSesion) {
+      TestBed.inject(AuthService).token.set(crearJwt(segundosDesdeAhora(3600)));
+    }
     const router = TestBed.inject(Router);
     const resultado = TestBed.runInInjectionContext(() =>
       guard({} as ActivatedRouteSnapshot, { url } as RouterStateSnapshot),
@@ -93,11 +93,11 @@ describe('guards de autenticación', () => {
     let authIncierta: AuthService;
 
     function ejecutarIncierta(guard: CanActivateFn): boolean | string {
-      localStorage.setItem(CLAVE_TOKEN, crearJwt(segundosDesdeAhora(3600)));
       TestBed.configureTestingModule({
         providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
       });
       const auth = TestBed.inject(AuthService);
+      auth.token.set(crearJwt(segundosDesdeAhora(3600)));
       authIncierta = auth;
       auth.sesionIncierta.set(true);
       expect(auth.usuario()).toBeNull();
@@ -135,11 +135,11 @@ describe('guards de autenticación', () => {
     });
 
     it('redirigirRaiz va a la agenda y recuerda /panel hasta que se sepa que es administrador', () => {
-      localStorage.setItem(CLAVE_TOKEN, crearJwt(segundosDesdeAhora(3600)));
       TestBed.configureTestingModule({
         providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
       });
       const auth = TestBed.inject(AuthService);
+      auth.token.set(crearJwt(segundosDesdeAhora(3600)));
       auth.sesionIncierta.set(true);
 
       expect(TestBed.runInInjectionContext(() => redirigirRaiz())).toBe('agenda');
@@ -160,8 +160,8 @@ describe('guards de autenticación', () => {
       TestBed.configureTestingModule({
         providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
       });
-      localStorage.setItem(CLAVE_TOKEN, crearJwt(segundosDesdeAhora(3600)));
       const auth = TestBed.inject(AuthService);
+      auth.token.set(crearJwt(segundosDesdeAhora(3600)));
       auth.usuario.set(USUARIO_JUGADOR);
 
       const resultado = TestBed.runInInjectionContext(() =>
@@ -183,10 +183,10 @@ describe('guards de autenticación', () => {
     });
 
     it('manda al administrador del club a /panel', () => {
-      localStorage.setItem(CLAVE_TOKEN, crearJwt(segundosDesdeAhora(3600)));
       TestBed.configureTestingModule({
         providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
       });
+      TestBed.inject(AuthService).token.set(crearJwt(segundosDesdeAhora(3600)));
       TestBed.inject(AuthService).usuario.set(USUARIO_ADMIN);
       const router = TestBed.inject(Router);
       const resultado = TestBed.runInInjectionContext(() =>

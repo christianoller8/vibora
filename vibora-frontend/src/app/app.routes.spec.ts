@@ -3,7 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
-import { AuthService, CLAVE_TOKEN } from './core/auth/auth.service';
+import { AuthService } from './core/auth/auth.service';
 import {
   FABRICA_CLIENTE_TIEMPO_REAL,
   FabricaClienteTiempoReal,
@@ -18,9 +18,6 @@ const fabricaSinSockets: FabricaClienteTiempoReal = () =>
 
 describe('rutas de la aplicación', () => {
   async function navegar(url: string, conSesion: boolean, usuario?: Usuario): Promise<string> {
-    if (conSesion) {
-      localStorage.setItem(CLAVE_TOKEN, crearJwt(segundosDesdeAhora(3600)));
-    }
     TestBed.configureTestingModule({
       providers: [
         provideRouter(routes),
@@ -29,6 +26,9 @@ describe('rutas de la aplicación', () => {
         { provide: FABRICA_CLIENTE_TIEMPO_REAL, useValue: fabricaSinSockets },
       ],
     });
+    if (conSesion) {
+      TestBed.inject(AuthService).token.set(crearJwt(segundosDesdeAhora(3600)));
+    }
     if (usuario) {
       TestBed.inject(AuthService).usuario.set(usuario); // como si /me ya hubiera respondido
     }

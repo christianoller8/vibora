@@ -1,4 +1,5 @@
 import { DOCUMENT } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { Injectable, effect, inject, untracked } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
@@ -16,9 +17,12 @@ const ERROR_NO_AUTENTICADO = 'No autenticado';
  * Mantiene la conexión en tiempo real mientras haya sesión: conecta al iniciar sesión, desconecta al cerrarla
  * y entrega cada notificación empujada al store (más un aviso con acción "Ver").
  *
- * Si el servidor rechaza el token ("No autenticado") la sesión se da por caducada: se cierra y se vuelve al
- * login en vez de reintentar con un token que no va a funcionar. Una conexión ya abierta no se revalida
- * cuando caduca el token; eso lo detecta la primera llamada REST (interceptor) o la siguiente reconexión.
+ * El token de acceso se renueva solo (refresco proactivo o por un 401 REST): cada vez que cambia la señal
+ * `auth.token()` se cierra la conexión y se abre otra con el token nuevo en el CONNECT.
+ *
+ * Si el servidor rechaza el token ("No autenticado", p. ej. porque cerró el socket al caducar) se refresca UNA vez:
+ * el token nuevo reconecta solo. Si el refresco da 401 la sesión terminó (al login); con 429 o sin red no se cierra
+ * nada. Si el token recién refrescado también es rechazado se da la sesión por terminada en vez de entrar en bucle.
  */
 @Injectable({ providedIn: 'root' })
 export class TiempoRealService {
@@ -32,13 +36,25 @@ export class TiempoRealService {
   private cliente: ClienteTiempoReal | null = null;
   /** Identifica la conexión vigente: los eventos de una anterior se ignoran. */
   private generacion = 0;
+  /** Token obtenido al refrescar por un rechazo del servidor: si también es rechazado, no se vuelve a refrescar. */
+  private tokenTrasRechazo: string | null = null;
+  /** Hay un refresco pedido por un rechazo: el próximo token que llegue es "el recién refrescado". */
+  private refrescandoPorRechazo = false;
 
   constructor() {
     effect(() => {
       const token = this.auth.token();
       untracked(() => {
         this.desconectar();
-        if (token !== null) {
+        if (token === null) {
+          this.tokenTrasRechazo = null;
+          this.refrescandoPorRechazo = false;
+        } else {
+          if (this.refrescandoPorRechazo) {
+            // Se marca aquí, al llegar el token, y no en el .then de refrescar(): así no depende del orden de microtareas
+            this.refrescandoPorRechazo = false;
+            this.tokenTrasRechazo = token;
+          }
           this.conectar(token);
         }
       });
@@ -56,6 +72,7 @@ export class TiempoRealService {
       destino: DESTINO_NOTIFICACIONES,
       alConectar: () => {
         if (vigente()) {
+          this.tokenTrasRechazo = null; // CONNECT correcto: un rechazo posterior es uno nuevo, no un segundo rechazo seguido
           // mientras estuvimos desconectados pudo llegar algo que no se empujó
           this.store.recargar();
         }
@@ -67,7 +84,7 @@ export class TiempoRealService {
       },
       alErrorStomp: (mensaje) => {
         if (vigente() && mensaje.includes(ERROR_NO_AUTENTICADO)) {
-          this.sesionCaducada();
+          this.tokenRechazado(token);
         }
       },
     }).then(
@@ -112,13 +129,39 @@ export class TiempoRealService {
       });
   }
 
-  private sesionCaducada(): void {
-    this.desconectar(); // sin reconexión: el token es inválido
-    this.auth.logout();
-    const destino = this.router.url;
-    const queryParams =
-      destino.startsWith('/login') || destino === '/' ? {} : { redirectTo: destino };
-    void this.router.navigate(['/login'], { queryParams });
+  private tokenRechazado(rechazado: string): void {
+    this.desconectar(); // la librería no debe reintentar con un token que ya no vale
+    if (rechazado === this.tokenTrasRechazo) {
+      // El token recién refrescado tampoco vale: se cierra la sesión revocándola en el servidor (logout) y se lleva
+      // al login conservando a dónde iba el usuario
+      const destino = this.router.url;
+      this.auth.logout();
+      if (!destino.startsWith('/login')) {
+        void this.router.navigate(['/login'], {
+          queryParams: destino === '/' ? {} : { redirectTo: destino },
+        });
+      }
+      return;
+    }
+    this.refrescandoPorRechazo = true; // ANTES de esperar: al cambiar el token, el efecto del constructor lo marca y reconecta
+    this.auth.refrescar().then(
+      (nuevo) => {
+        // Un token idéntico al rechazado no cambia la señal y el efecto no reconecta: se hace explícitamente
+        if (nuevo === rechazado && this.auth.token() === nuevo) {
+          this.refrescandoPorRechazo = false;
+          this.tokenTrasRechazo = nuevo;
+          this.conectar(nuevo);
+        }
+      },
+      (err: unknown) => {
+        this.refrescandoPorRechazo = false;
+        if (err instanceof HttpErrorResponse && err.status === 401) {
+          this.auth.expirarSesion();
+        }
+        // 429, sin red o sesión cerrada: AuthService reprograma el refresco (o un login nuevo cambia el token);
+        // cuando el token cambie, el efecto reconecta, así que el socket no queda sin camino de vuelta
+      },
+    );
   }
 }
 
