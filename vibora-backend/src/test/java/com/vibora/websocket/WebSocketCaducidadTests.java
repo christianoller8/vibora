@@ -123,8 +123,9 @@ class WebSocketCaducidadTests extends WebSocketTestBase {
 	@Test
 	void barrido_soloCierraLasCaducadas() throws Exception {
 		Jug ana = jugador(unico("ana"));
-		reloj.fijar(RelojTestConfig.AHORA_INICIAL.plus(Duration.ofMinutes(30)));
-		Jug beto = jugador(unico("beto")); // su token caduca 30 min despues que el de ana
+		// el desfase tiene que ser menor que la vida del token (15 min): si no, el de ana ya habria caducado al conectar
+		reloj.fijar(RelojTestConfig.AHORA_INICIAL.plus(Duration.ofMinutes(5)));
+		Jug beto = jugador(unico("beto")); // su token caduca 5 min despues que el de ana
 		Conexion deAna = conectarYSuscribir(ana);
 		Conexion deBeto = conectarYSuscribir(beto);
 		assertThat(caducidadDe(beto)).isAfter(caducidadDe(ana));
