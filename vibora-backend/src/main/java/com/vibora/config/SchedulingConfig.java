@@ -11,6 +11,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  */
 @Configuration
 @EnableScheduling
-@EnableConfigurationProperties({ NotificacionRetencionProperties.class, com.vibora.personal.InvitacionProperties.class })
+@EnableConfigurationProperties({ NotificacionRetencionProperties.class, com.vibora.personal.InvitacionProperties.class,
+		com.vibora.auth.SesionProperties.class })
 public class SchedulingConfig {
 }

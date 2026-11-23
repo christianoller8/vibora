@@ -11,6 +11,7 @@ class AccesoStompDenegadoException extends MessagingException {
 	static final String NO_AUTENTICADO = "No autenticado";
 	static final String ACCESO_DENEGADO = "Acceso denegado";
 	static final String DEMASIADAS_CONEXIONES = "Demasiadas conexiones";
+	static final String SERVICIO_NO_DISPONIBLE = "Servicio no disponible";
 
 	AccesoStompDenegadoException(String mensaje) {
 		super(mensaje);

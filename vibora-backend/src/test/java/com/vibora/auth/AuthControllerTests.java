@@ -258,8 +258,9 @@ class AuthControllerTests extends PostgresTestBase {
 
 		mvc.perform(get("/api/auth/me").header("Authorization", "Bearer " + token)).andExpect(status().isOk());
 
-		// el filtro JWT no consulta; perfil() debe resolver usuario+club en UNA sola sentencia
-		assertThat(stats.getPrepareStatementCount()).isEqualTo(1);
+		// el filtro JWT hace UNA consulta (la version de sesion, por el indice del email) y perfil() debe resolver
+		// usuario+club en UNA sola sentencia: 2 en total, sin cargas perezosas adicionales
+		assertThat(stats.getPrepareStatementCount()).isEqualTo(2);
 		stats.setStatisticsEnabled(false);
 	}
 
@@ -309,6 +310,25 @@ class AuthControllerTests extends PostgresTestBase {
 		mvc.perform(get("/api/auth/me").header("Authorization", "Bearer " + expirado))
 				.andExpect(status().isUnauthorized())
 				.andExpect(jsonPath("$.error").isString());
+	}
+
+	@Test
+	void me_conTokenExpirado_noConsultaLaVersionDeSesion() throws Exception {
+		Usuario u = crearUsuario("ana@vibora.com", Rol.JUGADOR, null, true);
+		Clock pasado = Clock.fixed(Instant.now().minus(Duration.ofHours(3)), java.time.ZoneOffset.UTC);
+		String expirado = new JwtService(new JwtProperties(secret, 60), pasado).generar(u).token();
+		em.flush();
+		em.clear();
+		var stats = em.getEntityManagerFactory().unwrap(org.hibernate.SessionFactory.class).getStatistics();
+		stats.setStatisticsEnabled(true);
+		stats.clear();
+
+		mvc.perform(get("/api/auth/me").header("Authorization", "Bearer " + expirado))
+				.andExpect(status().isUnauthorized());
+
+		// los validadores estandar (caducidad, emisor) van primero: un token caducado no llega a la BD
+		assertThat(stats.getPrepareStatementCount()).isZero();
+		stats.setStatisticsEnabled(false);
 	}
 
 	@Test

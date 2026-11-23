@@ -1,9 +1,12 @@
 package com.vibora.websocket;
 
 import com.vibora.auth.JwtService;
+import com.vibora.auth.VersionSesionValidador;
 import com.vibora.usuario.Usuario;
 import com.vibora.usuario.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataAccessException;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.simp.stomp.StompCommand;
@@ -15,6 +18,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.TransactionException;
 
 import java.util.Locale;
 
@@ -33,6 +37,7 @@ import java.util.Locale;
  */
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class StompAutenticacionInterceptor implements ChannelInterceptor {
 
 	static final String DESTINO_PERMITIDO = "/user/queue/notificaciones";
@@ -42,6 +47,7 @@ public class StompAutenticacionInterceptor implements ChannelInterceptor {
 	private final JwtAuthenticationConverter convertidor;
 	private final UsuarioRepository usuarios;
 	private final SesionesWs sesiones;
+	private final VersionSesionValidador versionSesion;
 
 	@Override
 	public Message<?> preSend(Message<?> mensaje, MessageChannel canal) {
@@ -80,13 +86,35 @@ public class StompAutenticacionInterceptor implements ChannelInterceptor {
 			jwt = jwtService.decodificar(token);
 		} catch (JwtException | IllegalArgumentException ex) {
 			throw new AccesoStompDenegadoException(AccesoStompDenegadoException.NO_AUTENTICADO);
+		} catch (DataAccessException | TransactionException ex) {
+			// la BD fallo al comprobar la version de sesion: ERROR limpio y cierre, no una excepcion cruda
+			// (una caida real sale de la transaccion como TransactionException, que no es DataAccessException)
+			log.warn("CONNECT STOMP rechazado: la BD no responde", ex);
+			throw new AccesoStompDenegadoException(AccesoStompDenegadoException.SERVICIO_NO_DISPONIBLE);
 		}
-		// igual que /me: el usuario debe seguir existiendo y estar activo
-		usuarios.findByEmail(jwt.getSubject()).filter(Usuario::isActivo)
-				.orElseThrow(() -> new AccesoStompDenegadoException(AccesoStompDenegadoException.NO_AUTENTICADO));
-		Authentication autenticacion = convertidor.convert(jwt);
-		// El socket sobrevive al token: se apunta cuando caduca para cerrarlo entonces (ver SesionesWs)
-		sesiones.autenticada(idSesion, autenticacion.getName(), jwt.getExpiresAt());
-		return autenticacion;
+		boolean registrada = false;
+		try {
+			// igual que /me: el usuario debe seguir existiendo y estar activo
+			usuarios.findByEmail(jwt.getSubject()).filter(Usuario::isActivo)
+					.orElseThrow(() -> new AccesoStompDenegadoException(AccesoStompDenegadoException.NO_AUTENTICADO));
+			Authentication autenticacion = convertidor.convert(jwt);
+			// El socket sobrevive al token: se apunta cuando caduca para cerrarlo entonces (ver SesionesWs)
+			sesiones.autenticada(idSesion, autenticacion.getName(), jwt.getExpiresAt());
+			registrada = true;
+			// Carrera con "cerrar todas": si subio la version entre la decodificacion y el registro, su expulsarDe pudo no ver
+			// este socket. Se vuelve a comprobar YA registrado: o lo expulsa ella, o lo ve este contraste.
+			if (versionSesion.validate(jwt).hasErrors()) {
+				// Sin expulsar: la excepcion ya manda el unico ERROR; solo se da de baja la entrada, en silencio
+				sesiones.olvidar(idSesion);
+				throw new AccesoStompDenegadoException(AccesoStompDenegadoException.NO_AUTENTICADO);
+			}
+			return autenticacion;
+		} catch (DataAccessException | TransactionException ex) {
+			if (registrada) {
+				sesiones.olvidar(idSesion); // no deja la entrada contando para el tope por usuario
+			}
+			log.warn("CONNECT STOMP rechazado: la BD no responde", ex);
+			throw new AccesoStompDenegadoException(AccesoStompDenegadoException.SERVICIO_NO_DISPONIBLE);
+		}
 	}
 }

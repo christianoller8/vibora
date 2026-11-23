@@ -21,12 +21,13 @@ import java.util.regex.Pattern;
  * <p>
  * Los intentos se cuentan al ADMITIRLOS, antes de hacer el hash de la contraseña (rechazo barato, protege la CPU), y no
  * al ver que fallan: asi el limite es exacto con peticiones simultaneas (con N hilos a la vez se admiten exactamente
- * los N permitidos) y no depende de si el email existe (no hay enumeracion de cuentas). Ventana FIJA que empieza en el
+ * los N permitidos; el refresco es la excepcion, ver abajo) y no depende de si el email existe (no hay enumeracion de cuentas). Ventana FIJA que empieza en el
  * primer intento; al terminar, el contador vuelve a cero.
  * <ul>
  * <li>login: por (IP, email normalizado) y por IP. La clave incluye la IP a proposito: quien ataca desde otras IPs no
  * puede dejar fuera a la victima. Un login correcto reinicia el par y devuelve el intento a la IP.</li>
  * <li>registro: por IP.</li>
+ * <li>refresco: por IP, pero solo cuentan los refrescos FALLIDOS (se comprueba al entrar y se cuenta al fallar, tras la consulta a BD, y solo si traia cookie; con mucha concurrencia puede pasarse un poco del tope).</li>
  * </ul>
  * Un intento rechazado no gasta cuota de la IP. Tamano acotado ({@code maxEntradas} por contador): al llenarse se
  * descartan las ventanas caducadas y, si sigue lleno, un lote de las mas antiguas (sin recorrer nunca todo el mapa).
@@ -58,6 +59,7 @@ public class LimitadorAuth {
 	private final Map<String, Ventana> loginPorPar = new LinkedHashMap<>();
 	private final Map<String, Ventana> loginPorIp = new LinkedHashMap<>();
 	private final Map<String, Ventana> registroPorIp = new LinkedHashMap<>();
+	private final Map<String, Ventana> refrescoPorIp = new LinkedHashMap<>();
 
 	public LimitadorAuth(SeguridadProperties propiedades, Clock reloj) {
 		this.propiedades = propiedades;
@@ -97,6 +99,25 @@ public class LimitadorAuth {
 		}
 	}
 
+	/**
+	 * Refrescos por IP: solo cuentan los FALLIDOS (sin cookie, desconocida, caducada, revocada, pasada de tope o reutilizada).
+	 * Esto comprueba, sin contar, que la IP no haya llenado su cuota (429 si lo hizo); {@link #refrescoFallido} la gasta.
+	 * Una rotacion correcta no gasta cuota: tras un club entero detras de la misma NAT, cada arranque de la app refresca.
+	 */
+	public synchronized void comprobarRefresco(String ipCliente) {
+		String ip = claveIp(ipCliente);
+		long espera = esperaSiLleno(refrescoPorIp.get(ip), propiedades.refrescoMaxPorIp(), propiedades.refrescoVentana(),
+				reloj.instant());
+		if (espera > 0) {
+			throw excedido(espera);
+		}
+	}
+
+	/** Un refresco fallido: cuenta contra la cuota de la IP. */
+	public synchronized void refrescoFallido(String ipCliente) {
+		contar(refrescoPorIp, claveIp(ipCliente), reloj.instant(), propiedades.refrescoVentana());
+	}
+
 	public synchronized void admitirRegistro(String ipCliente) {
 		String ip = claveIp(ipCliente);
 		Instant ahora = reloj.instant();
@@ -114,11 +135,12 @@ public class LimitadorAuth {
 	public synchronized int limpiarCaducados() {
 		Instant ahora = reloj.instant();
 		return purgar(loginPorPar, propiedades.loginVentana(), ahora) + purgar(loginPorIp, propiedades.loginVentana(), ahora)
-				+ purgar(registroPorIp, propiedades.registroVentana(), ahora);
+				+ purgar(registroPorIp, propiedades.registroVentana(), ahora)
+				+ purgar(refrescoPorIp, propiedades.refrescoVentana(), ahora);
 	}
 
 	public synchronized int tamano() {
-		return loginPorPar.size() + loginPorIp.size() + registroPorIp.size();
+		return loginPorPar.size() + loginPorIp.size() + registroPorIp.size() + refrescoPorIp.size();
 	}
 
 	// ---- internos (siempre bajo el monitor) ----

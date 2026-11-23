@@ -73,7 +73,7 @@ class RolesBdTest extends PostgresTestBase {
 					+ "and not rolsuper and not rolcreatedb and not rolcreaterole and not rolbypassrls and rolcanlogin"))
 					.isEqualTo("3");
 			assertThat(uno(s, "select count(*) from pg_tables where schemaname = 'public' and tablename <> 'flyway_schema_history' "
-					+ "and tableowner = 'vibora_owner'")).isEqualTo("16"); // 15 + invitacion_personal (V8)
+					+ "and tableowner = 'vibora_owner'")).isEqualTo("17"); // 15 + invitacion_personal (V8) + sesion_refresco (V9)
 		}
 	}
 
@@ -93,6 +93,24 @@ class RolesBdTest extends PostgresTestBase {
 			assertThat(s.executeUpdate("delete from reserva")).isEqualTo(1);
 			// secuencias: USAGE concedido (las de identidad y, por si acaso, nextval explicito)
 			assertThat(uno(s, "select nextval(pg_get_serial_sequence('club', 'id')) > 0")).isEqualTo("t");
+		}
+	}
+
+	/** V9: sesion_refresco llega con los privilegios por defecto (sin GRANT propio en la migracion) y version_sesion se puede actualizar. */
+	@Test
+	void laAplicacionHaceDmlEnSesionRefresco_yActualizaLaVersionDeSesion() throws Exception {
+		try (Connection c = como("vibora_app"); Statement s = c.createStatement()) {
+			s.execute("insert into usuario (email, password_hash, apellidos, rol) values ('s@x.com', 'h', 'S', 'JUGADOR')");
+			s.execute("insert into sesion_refresco (usuario_id, familia, hash_token, creado_en, expira_en, familia_expira_en) "
+					+ "select id, gen_random_uuid(), repeat('a', 64), now(), now() + interval '14 days', now() + interval '30 days' from usuario");
+			assertThat(s.executeUpdate("update sesion_refresco set usado_en = now()")).isEqualTo(1);
+			assertThat(s.executeUpdate("update usuario set version_sesion = version_sesion + 1")).isEqualTo(1);
+			assertThat(s.executeUpdate("delete from sesion_refresco")).isEqualTo(1);
+			assertThat(uno(s, "select nextval(pg_get_serial_sequence('sesion_refresco', 'id')) > 0")).isEqualTo("t");
+		}
+		try (Connection c = como("vibora_ro"); Statement s = c.createStatement()) {
+			assertThat(uno(s, "select count(*) from sesion_refresco")).isEqualTo("0");
+			assertThatThrownBy(() -> s.execute("delete from sesion_refresco")).hasMessageContaining("permission denied");
 		}
 	}
 

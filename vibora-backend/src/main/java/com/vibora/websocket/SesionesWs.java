@@ -128,6 +128,18 @@ public class SesionesWs {
 		});
 	}
 
+	/**
+	 * Cerrar sesion en todas partes: expulsa YA todas las sesiones abiertas de la persona (ERROR "No autenticado" + cierre),
+	 * sin esperar a que caduque su token. Los CONNECT posteriores con un token anterior los rechaza el decodificador (ver).
+	 */
+	public void expulsarDe(String usuario) {
+		sesiones.forEach((id, entrada) -> {
+			if (usuario.equals(entrada.usuario())) {
+				expulsar(id);
+			}
+		});
+	}
+
 	/** Antes de empujarle algo a un usuario: expulsa sus sesiones caducadas (las vigentes no se tocan). */
 	void expulsarCaducadasDe(String usuario) {
 		sesiones.forEach((id, entrada) -> {
@@ -173,6 +185,16 @@ public class SesionesWs {
 		Entrada e = sesiones.get(idSesion);
 		if (e != null && e.expulsada()) {
 			cerrar(idSesion);
+		}
+	}
+
+	/**
+	 * Quita la sesion del registro SIN mandar ningun frame ni cerrarla: la usa el interceptor cuando el CONNECT falla
+	 * despues de registrarla y el rechazo ya lo comunica la excepcion (un unico ERROR, y el cierre lo hace el transporte).
+	 */
+	void olvidar(String idSesion) {
+		if (idSesion != null) {
+			sesiones.remove(idSesion);
 		}
 	}
 

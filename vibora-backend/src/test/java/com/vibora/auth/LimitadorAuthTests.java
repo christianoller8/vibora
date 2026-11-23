@@ -27,7 +27,7 @@ class LimitadorAuthTests {
 	LimitadorAuth limitador;
 
 	private static SeguridadProperties props(int maxEmail, int maxIp, int maxRegistro, int maxEntradas) {
-		return new SeguridadProperties(maxEmail, maxIp, Duration.ofMinutes(15), maxRegistro, Duration.ofHours(1), maxEntradas);
+		return new SeguridadProperties(maxEmail, maxIp, Duration.ofMinutes(15), maxRegistro, Duration.ofHours(1), maxEntradas, 60, Duration.ofMinutes(15));
 	}
 
 	@BeforeEach

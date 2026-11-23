@@ -437,7 +437,8 @@ class ReservaControllerTests extends ApiTestBase {
 		estadisticas.setStatisticsEnabled(false);
 
 		// Con carga perezosa serian 1 (reservas) + 2 (pistas) + 2 (clubes) + las de autenticacion; con fetch join, constante
-		assertThat(consultas).isLessThanOrEqualTo(2);
+		// (la version de sesion del JWT suma una consulta fija mas)
+		assertThat(consultas).isLessThanOrEqualTo(3);
 	}
 
 	// ---- Cancelar ----

@@ -43,7 +43,7 @@ class MigracionV8Tests extends PostgresTestBase {
 			s.execute("insert into notificacion (usuario_id, tipo, mensaje, creada_en) "
 					+ "select id, 'PERSONAL_ANADIDO', 'm', now() from usuario where email = 'j@x.com'");
 		}
-		Flyway.configure().dataSource(url, usuario, password).load().migrate();
+		Flyway.configure().dataSource(url, usuario, password).target("8").load().migrate(); // V9 tiene su propio test
 	}
 
 	private Connection conexion() throws SQLException {

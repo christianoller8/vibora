@@ -53,6 +53,13 @@ public class Usuario {
 	@Column(nullable = false)
 	private boolean activo = true;
 
+	/**
+	 * Version de sesion: solo de lectura para JPA. Se sube con {@code UsuarioRepository.incrementarVersionSesion} (una
+	 * sentencia atomica); si JPA la escribiera, una entidad vieja podria pisar un cierre de sesion reciente.
+	 */
+	@Column(name = "version_sesion", nullable = false, insertable = false, updatable = false)
+	private int versionSesion;
+
 	@Column(name = "creado_en", nullable = false, updatable = false)
 	private Instant creadoEn;
 

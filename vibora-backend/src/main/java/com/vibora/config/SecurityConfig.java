@@ -18,7 +18,12 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.oauth2.server.resource.web.BearerTokenResolver;
+import org.springframework.security.oauth2.server.resource.web.DefaultBearerTokenResolver;
 import org.springframework.security.web.AuthenticationEntryPoint;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
+import org.springframework.security.web.util.matcher.OrRequestMatcher;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
 
@@ -34,10 +39,12 @@ public class SecurityConfig {
 	@Bean
 	SecurityFilterChain filterChain(HttpSecurity http, JwtAuthenticationConverter convertidor) throws Exception {
 		http
-				.csrf(AbstractHttpConfigurer::disable) // API stateless con Bearer token: sin cookies, sin CSRF
+				.csrf(AbstractHttpConfigurer::disable) // el acceso va en Authorization (sin cookie: sin CSRF); la cookie de refresco es solo de /api/auth y SameSite=Strict (ver AuthController)
 				.sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 				.authorizeHttpRequests(a -> a
 						.requestMatchers(HttpMethod.POST, "/api/auth/registro", "/api/auth/login").permitAll()
+						// se identifican por la cookie de refresco, no por el acceso (que puede haber caducado ya)
+						.requestMatchers(HttpMethod.POST, "/api/auth/refrescar", "/api/auth/cerrar-sesion").permitAll()
 						.requestMatchers("/error").permitAll()
 						// solo el estado (UP/DOWN) para el HEALTHCHECK; el resto de actuator ni esta expuesto
 						.requestMatchers(HttpMethod.GET, "/actuator/health", "/actuator/health/**").permitAll()
@@ -53,6 +60,7 @@ public class SecurityConfig {
 						.accessDeniedHandler(accessDeniedHandler()))
 				.oauth2ResourceServer(o -> o
 						.jwt(j -> j.jwtAuthenticationConverter(convertidor))
+						.bearerTokenResolver(resolutorDeBearer())
 						.authenticationEntryPoint(entryPoint())
 						.accessDeniedHandler(accessDeniedHandler()));
 		return http.build();
@@ -82,6 +90,18 @@ public class SecurityConfig {
 			return rol == null ? List.of() : List.of(new SimpleGrantedAuthority("ROLE_" + rol));
 		});
 		return convertidor;
+	}
+
+	/**
+	 * Refrescar y cerrar una sesion funcionan solo con la cookie: si el cliente aun manda un acceso caducado en la cabecera,
+	 * no se le hace caso (si no, el filtro de Bearer lo rechazaria con 401 antes de llegar al controlador).
+	 */
+	private BearerTokenResolver resolutorDeBearer() {
+		DefaultBearerTokenResolver delegado = new DefaultBearerTokenResolver();
+		RequestMatcher soloCookie = new OrRequestMatcher(
+				PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.POST, "/api/auth/refrescar"),
+				PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.POST, "/api/auth/cerrar-sesion"));
+		return request -> soloCookie.matches(request) ? null : delegado.resolve(request);
 	}
 
 	private AuthenticationEntryPoint entryPoint() {

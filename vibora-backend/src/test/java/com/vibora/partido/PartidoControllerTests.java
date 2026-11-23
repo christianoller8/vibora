@@ -262,8 +262,8 @@ class PartidoControllerTests extends PartidosApiTestBase {
 		long consultas = estadisticas.getPrepareStatementCount();
 		estadisticas.setStatisticsEnabled(false);
 
-		// 1 (usuario autenticado) + 1 (partidos con pista, club, organizador y jugadores)
-		assertThat(consultas).isLessThanOrEqualTo(2);
+		// 1 (version de sesion del JWT) + 1 (usuario autenticado) + 1 (partidos con pista, club, organizador y jugadores)
+		assertThat(consultas).isLessThanOrEqualTo(3);
 	}
 
 	// ---- apuntarse ----

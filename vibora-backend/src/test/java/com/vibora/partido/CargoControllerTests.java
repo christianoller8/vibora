@@ -297,6 +297,6 @@ class CargoControllerTests extends PartidosApiTestBase {
 		long consultas = estadisticas.getPrepareStatementCount();
 		estadisticas.setStatisticsEnabled(false);
 
-		assertThat(consultas).isLessThanOrEqualTo(2); // usuario autenticado + la agregacion
+		assertThat(consultas).isLessThanOrEqualTo(3); // version de sesion del JWT + usuario autenticado + la agregacion
 	}
 }

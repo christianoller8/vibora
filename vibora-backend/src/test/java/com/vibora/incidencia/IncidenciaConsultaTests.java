@@ -183,8 +183,9 @@ class IncidenciaConsultaTests extends IncidenciaApiTestBase {
 		long consultas = estadisticas.getPrepareStatementCount();
 		estadisticas.setStatisticsEnabled(false);
 
-		// 1 (usuario autenticado) + 1 (club) + 1 (listado con pista, reportero y responsable); constante, no depende de N
-		assertThat(consultas).isLessThanOrEqualTo(3);
+		// 1 (version de sesion del JWT) + 1 (usuario autenticado) + 1 (club) + 1 (listado con pista, reportero y responsable);
+		// constante, no depende de N
+		assertThat(consultas).isLessThanOrEqualTo(4);
 	}
 
 	// ---- detalle ----

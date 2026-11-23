@@ -23,7 +23,7 @@ public class AuthService {
 
 	private final UsuarioRepository usuarios;
 	private final PasswordEncoder passwordEncoder;
-	private final JwtService jwtService;
+	private final SesionService sesiones;
 	private final com.vibora.personal.InvitacionService invitaciones;
 
 	@Transactional
@@ -73,8 +73,9 @@ public class AuthService {
 		}
 	}
 
-	@Transactional(readOnly = true)
-	public TokenResponse login(LoginRequest peticion) {
+	/** Credenciales correctas: el acceso y una familia nueva de refresco (escribe, por eso no es de solo lectura). */
+	@Transactional
+	public SesionIniciada login(LoginRequest peticion) {
 		Usuario usuario = usuarios.findByEmail(normalizar(peticion.email())).orElse(null);
 		// Se comprueba siempre un hash (aunque el usuario no exista) para no filtrar por tiempos
 		String hash = usuario != null ? usuario.getPasswordHash() : hashFicticio();
@@ -84,7 +85,7 @@ public class AuthService {
 		if (usuario == null || !passwordOk || !usuario.isActivo()) {
 			throw new CredencialesInvalidasException();
 		}
-		return TokenResponse.bearer(jwtService.generar(usuario));
+		return sesiones.iniciar(usuario);
 	}
 
 	@Transactional(readOnly = true)

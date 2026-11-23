@@ -128,7 +128,7 @@ title: Arquitectura de Víbora
 flowchart LR
     spa["SPA Angular (nginx en Docker)"]
     api["Spring Boot: API REST y STOMP en /ws"]
-    db[("PostgreSQL 17 con Flyway V1 a V8")]
+    db[("PostgreSQL 17 con Flyway V1 a V9")]
     files[("Volumen con fotos de incidencias")]
     spa -->|"HTTP /api"| api
     spa -->|"WebSocket /ws"| api
@@ -136,7 +136,7 @@ flowchart LR
     api -->|"ficheros"| files
 ```
 
-La app Angular llama a la API REST y abre un WebSocket STOMP en `/ws`. En Docker, nginx sirve la app y reenvía `/api` y `/ws` al backend, que no se publica en el host. El backend guarda los datos en PostgreSQL, cuyo esquema gestionan las migraciones de Flyway `V1` a `V8`, y guarda las fotos de incidencias como ficheros en un volumen.
+La app Angular llama a la API REST y abre un WebSocket STOMP en `/ws`. En Docker, nginx sirve la app y reenvía `/api` y `/ws` al backend, que no se publica en el host. El backend guarda los datos en PostgreSQL, cuyo esquema gestionan las migraciones de Flyway `V1` a `V9`, y guarda las fotos de incidencias como ficheros en un volumen.
 
 ### Flujo de reserva
 
@@ -197,11 +197,12 @@ Definidas en `vibora-backend/src/main/java/com/vibora/metricas/MetricasService.j
 <details>
 <summary><strong>Endpoints principales</strong></summary>
 
-Todo salvo el registro, el login y `/actuator/health` necesita la cabecera `Authorization: Bearer <token>`.
+Todo salvo el registro, el login, la renovación del token, el cierre de una sola sesión y `/actuator/health` necesita la cabecera `Authorization: Bearer <token>`.
 
 | Método y ruta | Para qué sirve |
 | --- | --- |
 | `POST /api/auth/registro`, `POST /api/auth/login`, `GET /api/auth/me` | Registrarse, iniciar sesión, perfil actual |
+| `POST /api/auth/refrescar`, `POST /api/auth/cerrar-sesion`, `POST /api/auth/cerrar-sesion-todas` | Rotar la cookie de refresco y obtener un token de acceso nuevo, cerrar esta sesión, cerrar la sesión en todas partes |
 | `GET /api/clubes`, `POST /api/clubes`, `PUT /api/clubes/{id}` | Clubes |
 | `GET\|POST /api/clubes/{clubId}/pistas`, `.../tarifas` | Pistas y tarifas |
 | `GET /api/clubes/{clubId}/pistas/{pistaId}/agenda?fecha=` | Agenda diaria de una pista |
@@ -254,11 +255,12 @@ En cualquier otro caso está apagada y el backend responde 404: `java -jar`, la 
 
 - **Contraseñas**: se guardan con BCrypt, normalizadas a Unicode NFC y limitadas a 72 bytes UTF-8 (si no, BCrypt las truncaría en silencio). El login comprueba siempre un hash, incluso con correos desconocidos, para que el tiempo de respuesta no delate qué cuentas existen.
 - **Sesión**: un JWT sin estado firmado con HMAC-SHA256 (`sub` = email, 60 minutos). El secreto debe tener al menos 32 bytes; si no, la app se niega a arrancar.
+- **Renovación y revocación**: el login también entrega un token de refresco en una cookie `HttpOnly`, `Secure`, `SameSite=Strict` limitada a `/api/auth` (14 días deslizantes, 30 absolutos; solo se guarda su SHA-256). Cada uso lo rota, y reutilizar un token ya rotado revoca toda su familia, así que una copia robada deja de servir. La rotación es estricta, sin margen de gracia: el cliente debe serializar sus renovaciones, y reintentar con un token ya rotado (por ejemplo tras perder la respuesta) cierra la sesión a propósito. Cada usuario tiene una versión de sesión que llevan todos los tokens de acceso (`ver`) y que se comprueba en cada petición, así que "cerrar sesión en todas partes" invalida los tokens de acceso al instante y cierra los WebSockets abiertos de esa persona.
 - **Autorización**: la pertenencia al club y el rol se leen de la base de datos en cada petición (mira la tabla de decisiones). El auto-registro solo puede crear jugadores.
-- **Límites de frecuencia**: el login se limita por IP y correo, y el registro por IP; al superar un límite se responde `429` con `Retry-After`. nginx añade su propio límite en login y registro.
+- **Límites de frecuencia**: el login se limita por IP y correo, el registro por IP y la renovación del token por IP (solo cuentan las renovaciones FALLIDAS; una rotación correcta no, ni las peticiones sin cookie; con el cupo lleno se responde `429` a cualquier renovación de esa IP, aunque la cookie sea válida); al superar un límite se responde `429` con `Retry-After`. Un `429` al renovar significa «reintenta más tarde», no «sesión terminada»: el cliente no debe descartar la sesión por ello. nginx añade su propio límite en login y registro.
 - **Política del navegador**: la Content-Security-Policy la genera `vibora-frontend/docker/csp.mjs` sin `unsafe-inline` para scripts (los scripts en línea solo se permiten por hash), y `npm run test:csp` la comprueba.
 - **Roles de base de datos**: `ops/db-roles.sql` define roles de mínimo privilegio para producción.
-- **Límites conocidos**: no hay revocación del token en el servidor al cerrar sesión ni renovación del token (hay que volver a iniciar sesión a los 60 minutos). El token se guarda en `localStorage`, así que un fallo XSS podría leerlo; la CSP estricta es la mitigación.
+- **Límites conocidos**: hasta que el frontend adopte la cookie de refresco, el token de acceso sigue guardándose en `localStorage` y dura 60 minutos, así que un fallo XSS podría leerlo; la CSP estricta es la mitigación. `cerrar-sesion` cierra solo el token de refresco de esa sesión: su token de acceso actual sigue siendo válido hasta que caduque (60 minutos por ahora) y los WebSockets abiertos siguen conectados; «cerrar la sesión en todas partes» invalida los tokens de acceso al instante.
 
 <details>
 <summary><strong>Límites y protecciones (todos los valores)</strong></summary>
@@ -270,6 +272,8 @@ Cada valor es una propiedad de `application.properties` y se puede pisar con una
 | Intentos de login por (IP, correo) | `vibora.seguridad.login-max-por-email` / `login-ventana` | 5 cada 15 min (un login correcto reinicia el contador) |
 | Intentos de login por IP | `vibora.seguridad.login-max-por-ip` | 30 cada 15 min |
 | Registros por IP | `vibora.seguridad.registro-max-por-ip` / `registro-ventana` | 10 por hora |
+| Renovaciones de token fallidas por IP | `vibora.seguridad.refresco-max-por-ip` / `refresco-ventana` | 60 cada 15 min |
+| Vida del token de refresco | `vibora.sesion.refresco-dias` / `maximo-dias` | 14 días deslizantes, 30 absolutos desde el login |
 | Antelación máxima de una reserva | `vibora.reservas.horizonte-dias` | 60 días (día natural de Madrid) → 400 |
 | Reservas activas por jugador | `vibora.reservas.max-activas-por-usuario` | 10 (confirmadas que no han empezado) → 409; apuntarse a un partido abierto no cuenta |
 | Decodificaciones de imagen simultáneas | `vibora.almacen.decodificaciones-simultaneas` / `espera-decodificacion` | 2; si no hay hueco en 10 s → 503 |
@@ -429,12 +433,13 @@ Definidas en `docker-compose.yml` y `application.properties` (`VIBORA_API_DOCS`,
 | `VIBORA_WEBSOCKET_ORIGENES_PERMITIDOS` | No | `http://localhost:8088` en Docker, `http://localhost:4200` en local | Orígenes de navegador que pueden abrir el WebSocket |
 | `VIBORA_ALMACEN_DIRECTORIO` | No | `/data/uploads` en Docker, `./data/uploads` en local | Carpeta de las fotos de incidencias |
 | `VIBORA_API_DOCS` | No | `false`; `./mvnw spring-boot:run` fija `true` | Sirve la especificación OpenAPI y Swagger UI; con `false` ambas responden 404 |
+| `VIBORA_SESION_COOKIE_SEGURA` | No | `true` | Atributo `Secure` de la cookie de refresco. Mantén `true` con HTTPS. Chrome y Firefox aceptan cookies `Secure` en `http://localhost`, pero Safari no, así que pon `false` para usar HTTP plano ahí |
 | `JAVA_OPTS` | No | vacío | Opciones extra de la JVM en Docker |
 
 ## Pruebas y verificación
 
 ```bash
-cd vibora-backend && ./mvnw test                  # necesita Docker (Testcontainers); 1.333 tests en noviembre de 2026
+cd vibora-backend && ./mvnw test                  # necesita Docker (Testcontainers); 1.410 tests en noviembre de 2026
 cd vibora-frontend && npx ng test --watch=false   # Vitest; 1.646 tests
 cd vibora-frontend && npm run test:csp            # comprueba la CSP generada
 cd vibora-frontend && npm run test:tema           # comprueba el script del tema inicial
@@ -455,7 +460,7 @@ La suite del backend tarda varios minutos porque arranca un contenedor real de P
 La CI está definida en [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) (tests del backend, tests y guardias del frontend, tests del script de datos y una prueba de humo con Docker a través de nginx), pero nunca se ha ejecutado en GitHub: la cuenta tiene un bloqueo de facturación que impide arrancar los jobs. Los comandos que usa se han ejecutado en local.
 
 - [ ] Fase 4: emparejamiento con IA
-- [ ] Revocación del token en el servidor al cerrar sesión y renovación del token
+- [ ] Frontend: usar la cookie de refresco y mantener el token de acceso en memoria
 - [ ] Límites antiabuso compartidos entre instancias (por ejemplo, en Redis)
 - [ ] Ejecutar la CI en GitHub
 

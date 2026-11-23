@@ -71,6 +71,7 @@ services:
       # Fotos de incidencias: los ficheros viven en el volumen vibora-uploads, no dentro del contenedor
       VIBORA_ALMACEN_DIRECTORIO: /data/uploads
       SPRING_JPA_SHOW_SQL: "false"
+      VIBORA_SESION_COOKIE_SEGURA: ${VIBORA_SESION_COOKIE_SEGURA:-true}
       JAVA_OPTS: ${JAVA_OPTS:-}
     volumes:
       - vibora-uploads:/data/uploads

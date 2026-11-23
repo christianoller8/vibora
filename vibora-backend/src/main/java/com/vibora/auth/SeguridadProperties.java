@@ -12,6 +12,7 @@ import java.time.Duration;
  * <li>{@code loginMaxPorEmail}: intentos de login por (IP, email) dentro de {@code loginVentana}. Un login correcto lo reinicia.</li>
  * <li>{@code loginMaxPorIp}: intentos de login por IP en la misma ventana (un login correcto no cuenta).</li>
  * <li>{@code registroMaxPorIp}: registros por IP dentro de {@code registroVentana}.</li>
+ * <li>{@code refrescoMaxPorIp}: refrescos FALLIDOS de /api/auth/refrescar por IP dentro de {@code refrescoVentana} (los correctos no cuentan).</li>
  * <li>{@code maxEntradas}: tope de claves en memoria por contador (al llenarse se descartan las caducadas y, si hace
  * falta, las mas antiguas).</li>
  * </ul>
@@ -23,5 +24,7 @@ public record SeguridadProperties(
 		@DefaultValue("15m") Duration loginVentana,
 		@DefaultValue("10") int registroMaxPorIp,
 		@DefaultValue("1h") Duration registroVentana,
-		@DefaultValue("10000") int maxEntradas) {
+		@DefaultValue("10000") int maxEntradas,
+		@DefaultValue("60") int refrescoMaxPorIp,
+		@DefaultValue("15m") Duration refrescoVentana) {
 }
