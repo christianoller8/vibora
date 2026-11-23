@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Víbora - D0 mockup</title>
+<style>
+/* Tokens copied from DESIGN.md. Dark is the default. */
+:root, :root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #1C2124; --card: #262C30; --raised: #2F363B;
+  --text: #F1F3EE; --text-2: #A9B2B7;
+  --lime: #D4F25A; --on-lime: #161B00; --accent-text: #D4F25A;
+  --pale: #E2F37A; --on-pale: #1C2124;
+  --block: #2F363B; --on-block: #F1F3EE; --block-accent: #D4F25A;
+  --outline: #6F7A80; --outline-variant: #363D42;
+  --taken: #2F363B;
+  --ok: #7FD99A; --ok-c: #12391F; --on-ok-c: #B5F0C4;
+  --warn: #F5B84A;
+  --focus: #D4F25A;
+  --brand-grad: linear-gradient(135deg, #1C2124 0%, #3A4A0C 55%, #9DB82A 100%);
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --page: #ECEDEA; --card: #FFFFFF; --raised: #F5F6F3;
+  --text: #1C2124; --text-2: #4A5358;
+  --lime: #D4F25A; --on-lime: #1C2124; --accent-text: #4A5A00;
+  --pale: #E2F37A; --on-pale: #1C2124;
+  --block: #1C2124; --on-block: #F1F3EE; --block-accent: #D4F25A;
+  --outline: #6B7378; --outline-variant: #CBCFCB;
+  --taken: #E2E4E0;
+  --ok: #1E6B34; --ok-c: #C3F0CE; --on-ok-c: #002110;
+  --warn: #7A4B00;
+  --focus: #4A5A00;
+}
+:root {
+  --r-sm: 10px; --r-md: 16px; --r-lg: 20px; --r-xl: 24px; --r-hero: 32px; --r-pill: 999px;
+  --font: 'Manrope Variable', Manrope, system-ui, sans-serif;
+  --gutter: 16px;
+}
+@media (min-width: 900px) { :root { --gutter: 32px; } }
+
+*, *::before, *::after { box-sizing: border-box; }
+html { scrollbar-color: var(--outline) var(--page); }
+body { margin: 0; background: var(--page); color: var(--text); font: 400 1rem/1.55 var(--font); -webkit-font-smoothing: antialiased; }
+::selection { background: var(--lime); color: var(--on-lime); }
+input, textarea { caret-color: var(--accent-text); }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+h1, h2, h3, p { margin: 0; }
+h1, h2, h3 { text-wrap: balance; }
+.num { font-variant-numeric: tabular-nums; }
+.wrap { max-width: 1280px; margin-inline: auto; padding-inline: var(--gutter); }
+
+/* Mockup chrome (not part of the design) */
+.bar { position: sticky; top: 0; z-index: 20; background: var(--page); border-bottom: 1px solid var(--outline-variant); }
+.bar .wrap { display: flex; align-items: center; justify-content: space-between; min-height: 52px; gap: 12px; }
+.bar small { color: var(--text-2); font-weight: 600; }
+.mode-label { display: inline-block; margin: 48px 0 16px; color: var(--text-2); font-weight: 600; font-size: .875rem; }
+
+/* Buttons */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; padding: 0 24px; border-radius: var(--r-pill); border: 1.5px solid transparent; font: 700 1rem/1 var(--font); cursor: pointer; text-decoration: none; transition: background-color .18s, transform .18s; }
+.btn-primary { background: var(--lime); color: var(--on-lime); }
+.btn-primary:hover { background: #E2F37A; }
+.btn-ghost { background: transparent; color: var(--text); border-color: var(--outline); }
+.btn-ghost:hover { background: var(--raised); }
+.btn-photo { background: transparent; color: #fff; border-color: #fff; }
+.btn-photo:hover { background: rgba(255,255,255,.14); }
+.btn-sm { min-height: 44px; padding: 0 18px; }
+.btn[disabled] { opacity: .4; pointer-events: none; }
+.btn:active { transform: translateY(1px); }
+
+/* Photo placeholder slot */
+.photo { position: relative; overflow: hidden; background:
+  repeating-linear-gradient(135deg, rgba(255,255,255,.05) 0 14px, transparent 14px 28px),
+  linear-gradient(160deg, #3b5560 0%, #1f333c 100%); }
+.photo[data-foto]::after { content: attr(data-foto); position: absolute; right: 12px; bottom: 12px; padding: 4px 10px; border-radius: var(--r-pill); background: rgba(14,18,21,.7); color: #F1F3EE; font: 600 .75rem/1.4 var(--font); }
+
+/* (a) Hero - Persuade */
+.hero { position: relative; margin: 12px; border-radius: var(--r-hero); min-height: 640px; color: #fff; display: flex; flex-direction: column; justify-content: space-between; padding: 12px 12px 32px; isolation: isolate; }
+.hero .photo { position: absolute; inset: 0; z-index: -2; border-radius: inherit; }
+.hero::before { content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit;
+  background: linear-gradient(to top, rgba(14,18,21,.88) 0%, rgba(14,18,21,.55) 55%, rgba(14,18,21,.55) 100%); }
+.nav { display: flex; align-items: center; justify-content: space-between; gap: 12px; align-self: stretch; max-width: 880px; margin-inline: auto; width: 100%; min-height: 56px; padding: 6px 6px 6px 22px; border-radius: var(--r-pill); background: rgba(28,33,36,.92); color: #F1F3EE; }
+.brand { font-weight: 800; letter-spacing: .08em; font-size: 1.05rem; color: inherit; text-decoration: none; }
+.brand i { font-style: normal; color: #D4F25A; }
+.nav ul { display: none; gap: 4px; list-style: none; margin: 0; padding: 0; }
+.nav ul a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border-radius: var(--r-pill); color: #F1F3EE; font-weight: 600; text-decoration: none; }
+.nav ul a:hover { background: #2F363B; }
+.nav .btn { min-height: 44px; }
+@media (min-width: 720px) { .nav ul { display: flex; } }
+.hero-body { padding: 0 12px; max-width: 1280px; width: 100%; margin-inline: auto; }
+.hero h1 { font-weight: 800; font-size: clamp(3rem, 9vw, 6rem); line-height: .95; letter-spacing: -.03em; max-width: 12ch; animation: rise .7s cubic-bezier(.16,1,.3,1) both; }
+.hero p { margin-top: 20px; max-width: 46ch; font-size: 1.125rem; color: #E6E9E4; }
+.cta-row { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
+@keyframes rise { from { transform: translateY(16px); } to { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .hero h1 { animation: none; } .btn { transition: none; } }
+@media (min-width: 900px) { .hero { margin: 16px; min-height: 720px; padding: 16px 16px 56px; } .hero-body { padding: 0 32px; } }
+
+/* (b) Mission sentence */
+.mission { padding-block: 72px; }
+.mission p { font-weight: 700; font-size: clamp(1.75rem, 4.2vw, 3.25rem); line-height: 1.25; letter-spacing: -.02em; max-width: 24em; text-wrap: pretty; }
+.mission .muted { color: var(--text-2); }
+.pill-photo { display: inline-block; width: 2.6em; height: .9em; border-radius: var(--r-pill); vertical-align: -.1em; margin-inline: .1em; }
+
+/* (c) Feature bento + stat */
+.bento { display: grid; gap: 16px; grid-template-columns: 1fr; padding-bottom: 24px; }
+@media (min-width: 900px) { .bento { grid-template-columns: 1.4fr 1fr 1fr; grid-template-rows: auto auto; gap: 20px; } .bento .f1 { grid-row: span 2; } }
+.card { background: var(--card); border: 1px solid var(--outline-variant); border-radius: var(--r-xl); padding: 24px; }
+.f1 { display: flex; flex-direction: column; gap: 20px; padding: 12px 12px 24px; }
+.f1 .photo { border-radius: var(--r-lg); min-height: 260px; flex: 1; }
+.f1 .txt { padding: 0 12px; }
+.card h3 { font-size: 1.375rem; font-weight: 800; letter-spacing: -.01em; line-height: 1.2; }
+.card p { margin-top: 10px; color: var(--text-2); max-width: 38ch; }
+.f2 { background: var(--pale); color: var(--on-pale); border-color: transparent; }
+.f2 p { color: var(--on-pale); }
+.f3 { background: var(--block); color: var(--on-block); border-color: transparent; }
+.f3 p { color: var(--on-block); opacity: .82; }
+.f3 h3 span { color: var(--block-accent); }
+.stat { grid-column: 1 / -1; display: flex; flex-direction: column; justify-content: space-between; gap: 24px; background: var(--card); }
+@media (min-width: 900px) { .stat { grid-column: 2 / 4; flex-direction: row; align-items: flex-end; } }
+.stat b { font-size: clamp(3rem, 7vw, 5rem); line-height: 1; letter-spacing: -.03em; font-weight: 800; color: var(--accent-text); }
+.stat span { max-width: 32ch; color: var(--text-2); }
+.stat small { display: block; margin-top: 6px; font-size: .75rem; }
+
+/* (d) Operate */
+.operate { padding-bottom: 96px; }
+.op-grid { display: grid; gap: 16px; }
+@media (min-width: 900px) { .op-grid { grid-template-columns: 1.7fr 1fr; gap: 20px; } .kpis { grid-column: 1 / -1; } }
+.op-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+.op-head h2 { font-size: 1.25rem; font-weight: 800; }
+.op-head span { color: var(--text-2); font-size: .875rem; font-weight: 500; }
+.agenda { overflow-x: auto; margin-inline: -4px; padding: 4px; scrollbar-width: thin; }
+.week { display: grid; grid-template-columns: 56px repeat(7, minmax(72px, 1fr)); gap: 8px; min-width: 620px; align-items: stretch; }
+.week .dh { text-align: center; font-size: .875rem; font-weight: 700; padding-bottom: 4px; }
+.week .dh small { display: block; color: var(--text-2); font-weight: 500; font-size: .75rem; }
+.week .hr { align-self: center; color: var(--text-2); font-size: .75rem; font-weight: 600; }
+.slot { min-height: 52px; border-radius: var(--r-sm); border: 1.5px solid var(--outline); background: transparent; color: var(--text); font: 600 .75rem/1.25 var(--font); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: pointer; transition: background-color .18s; }
+.slot b { font-size: .875rem; font-weight: 700; }
+.slot:hover { background: var(--raised); }
+.slot.taken { background: repeating-linear-gradient(135deg, rgba(128,138,144,.18) 0 6px, transparent 6px 12px), var(--taken); border-color: transparent; color: var(--text-2); cursor: not-allowed; }
+.slot.sel { background: var(--lime); border-color: var(--lime); color: var(--on-lime); }
+.slot svg { width: 14px; height: 14px; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 16px; color: var(--text-2); font-size: .875rem; }
+.legend span::before { content: ""; display: inline-block; width: 14px; height: 14px; border-radius: 4px; margin-right: 8px; vertical-align: -2px; border: 1.5px solid var(--outline); }
+.legend .l-sel::before { background: var(--lime); border-color: var(--lime); }
+.legend .l-tk::before { background: var(--taken); border-color: var(--outline-variant); }
+
+.match h3 { font-size: 1.125rem; font-weight: 800; }
+.match .meta { color: var(--text-2); font-size: .875rem; margin-top: 2px; }
+.match .need { margin-top: 20px; font-size: 1.25rem; font-weight: 800; letter-spacing: -.01em; }
+.match .need em { font-style: normal; color: var(--accent-text); }
+.avatars { display: flex; margin-top: 16px; }
+.av { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: .875rem; border: 2px solid var(--card); margin-left: -8px; background: var(--raised); color: var(--text); }
+.av:first-child { margin-left: 0; }
+.av.a2 { background: var(--pale); color: var(--on-pale); }
+.av.a3 { background: var(--lime); color: var(--on-lime); }
+.av.open { background: transparent; color: var(--text-2); border: 2px dashed var(--outline); }
+.match .btn { margin-top: 24px; width: 100%; }
+
+.kpis { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+@media (min-width: 900px) { .kpis { grid-template-columns: repeat(4, 1fr); gap: 20px; } }
+.kpi { background: var(--card); border: 1px solid var(--outline-variant); border-radius: var(--r-lg); padding: 16px 20px; }
+.kpi span { display: block; color: var(--text-2); font-size: .875rem; font-weight: 500; }
+.kpi b { display: block; margin-top: 4px; font-size: 1.75rem; font-weight: 800; letter-spacing: -.02em; }
+.kpi small { color: var(--ok); font-size: .75rem; font-weight: 600; }
+.kpi small.warn { color: var(--warn); }
+</style>
+</head>
+<body>
+
+<div class="bar">
+  <div class="wrap">
+    <small>Víbora - D0 direction mockup</small>
+    <button class="btn btn-ghost btn-sm" id="toggle" type="button" aria-pressed="false">Tema: oscuro</button>
+  </div>
+</div>
+
+<!-- (a) Landing hero - Persuade -->
+<header class="hero">
+  <div class="photo" data-foto="foto: pista" aria-hidden="true"></div>
+  <nav class="nav" aria-label="Principal">
+    <a class="brand" href="#">V<i>Í</i>BORA</a>
+    <ul>
+      <li><a href="#">Pistas</a></li>
+      <li><a href="#">Partidos</a></li>
+      <li><a href="#">Club</a></li>
+    </ul>
+    <a class="btn btn-primary" href="#">Entrar</a>
+  </nav>
+  <div class="hero-body">
+    <h1>Reserva. Juega. Repite.</h1>
+    <p>Pistas sin dobles reservas y partidos abiertos donde cada jugador paga solo su parte.</p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="#agenda">Reservar pista</a>
+      <a class="btn btn-photo" href="#partido">Ver partidos</a>
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- (b) Mission -->
+  <section class="mission wrap">
+    <p>
+      Cada hueco libre es un partido por jugar.
+      <span class="pill-photo photo" data-foto="" aria-hidden="true"></span>
+      Reservamos tu pista sin choques,
+      <span class="pill-photo photo" aria-hidden="true" style="background: repeating-linear-gradient(135deg, rgba(255,255,255,.06) 0 10px, transparent 10px 20px), linear-gradient(160deg,#4a5a3a,#27331c)"></span>
+      completamos el partido
+      <span class="pill-photo photo" aria-hidden="true" style="background: repeating-linear-gradient(135deg, rgba(255,255,255,.05) 0 10px, transparent 10px 20px), linear-gradient(160deg,#4b5559,#262d31)"></span>
+      <span class="muted">y repartimos el coste entre los que juegan.</span>
+    </p>
+  </section>
+
+  <!-- (c) Feature cards + stat -->
+  <section class="wrap" aria-label="Qué hace Víbora">
+    <div class="bento">
+      <article class="card f1">
+        <div class="photo" data-foto="foto: pista" role="img" aria-label="Marcador de posición: foto de una pista"></div>
+        <div class="txt">
+          <h3>Reserva sin choques</h3>
+          <p>Cada hueco de 90 minutos se bloquea al reservar. Si alguien te gana por un segundo, lo ves antes de pagar.</p>
+        </div>
+      </article>
+      <article class="card f2">
+        <h3>Partidos abiertos</h3>
+        <p>Publica tu reserva, deja huecos y que se apunten otros. El importe se divide solo.</p>
+      </article>
+      <article class="card f3">
+        <h3>Incidencias y <span>facturas</span></h3>
+        <p>Avisa de una luz rota en dos toques. El club emite y consulta facturas desde el panel.</p>
+      </article>
+      <article class="card stat">
+        <b class="num">92&nbsp;%</b>
+        <span>de los partidos abiertos llegan completos a la hora de jugar.<small>Dato de ejemplo para el mockup.</small></span>
+      </article>
+    </div>
+  </section>
+
+  <!-- (d) Operate sample -->
+  <section class="wrap operate" id="agenda" aria-label="Muestra de la aplicación">
+    <span class="mode-label">Operate: sin fotos detrás de la interfaz de trabajo</span>
+    <div class="op-grid">
+      <div class="card">
+        <div class="op-head"><h2>Pista 2 - semana del 24 al 30</h2><span>Huecos de 90 min</span></div>
+        <div class="agenda" role="region" aria-label="Agenda semanal" tabindex="0">
+          <div class="week" role="grid">
+            <div></div>
+            <div class="dh">Lun<small>24</small></div><div class="dh">Mar<small>25</small></div><div class="dh">Mié<small>26</small></div><div class="dh">Jue<small>27</small></div><div class="dh">Vie<small>28</small></div><div class="dh">Sáb<small>29</small></div><div class="dh">Dom<small>30</small></div>
+
+            <div class="hr num">17:00</div>
+            <button class="slot" type="button"><b class="num">18 €</b>Libre</button>
+            <button class="slot taken" type="button" aria-disabled="true">Ocupada</button>
+            <button class="slot" type="button"><b class="num">18 €</b>Libre</button>
+            <button class="slot" type="button"><b class="num">18 €</b>Libre</button>
+            <button class="slot taken" type="button" aria-disabled="true">Ocupada</button>
+            <button class="slot" type="button"><b class="num">22 €</b>Libre</button>
+            <button class="slot" type="button"><b class="num">22 €</b>Libre</button>
+
+            <div class="hr num">18:30</div>
+            <button class="slot taken" type="button" aria-disabled="true">Ocupada</button>
+            <button class="slot" type="button"><b class="num">24 €</b>Libre</button>
+            <button class="slot taken" type="button" aria-disabled="true">Ocupada</button>
+            <button class="slot" type="button"><b class="num">24 €</b>Libre</button>
+            <button class="slot" type="button"><b class="num">24 €</b>Libre</button>
+            <button class="slot taken" type="button" aria-disabled="true">Ocupada</button>
+            <button class="slot" type="button"><b class="num">26 €</b>Libre</button>
+
+            <div class="hr num">20:00</div>
+            <button class="slot" type="button"><b class="num">26 €</b>Libre</button>
+            <button class="slot taken" type="button" aria-disabled="true">Ocupada</button>
+            <button class="slot" type="button"><b class="num">26 €</b>Libre</button>
+            <button class="slot sel" type="button" aria-pressed="true"><b class="num">26 €</b>
+              <span style="display:inline-flex;align-items:center;gap:4px"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5l3.2 3.2L13 4.8"/></svg>Seleccionada</span></button>
+            <button class="slot taken" type="button" aria-disabled="true">Ocupada</button>
+            <button class="slot" type="button"><b class="num">26 €</b>Libre</button>
+            <button class="slot taken" type="button" aria-disabled="true">Ocupada</button>
+          </div>
+        </div>
+        <div class="legend"><span>Libre</span><span class="l-tk">Ocupada</span><span class="l-sel">Seleccionada</span></div>
+      </div>
+
+      <article class="card match" id="partido">
+        <h3>Partido abierto</h3>
+        <p class="meta">Pista 2 - Jue 27, 20:00</p>
+        <p class="need">Faltan 2 · <em class="num">6,50 €</em> por jugador</p>
+        <div class="avatars" role="img" aria-label="2 jugadores apuntados, 2 huecos libres">
+          <span class="av a3" aria-hidden="true">CO</span>
+          <span class="av a2" aria-hidden="true">MR</span>
+          <span class="av open" aria-hidden="true">+</span>
+          <span class="av open" aria-hidden="true">+</span>
+        </div>
+        <button class="btn btn-primary" type="button">Unirme por 6,50 €</button>
+      </article>
+
+      <div class="kpis" aria-label="Métricas del club">
+        <div class="kpi"><span>Ingresos del mes</span><b class="num">4.280 €</b><small>+4 % vs. mes anterior</small></div>
+        <div class="kpi"><span>Ocupación</span><b class="num">78 %</b><small>+3 puntos</small></div>
+        <div class="kpi"><span>Partidos completados</span><b class="num">31</b><small>+6 vs. mes anterior</small></div>
+        <div class="kpi"><span>Cancelaciones</span><b class="num">6</b><small class="warn">2 sin aviso previo</small></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+  var root = document.documentElement, btn = document.getElementById('toggle');
+  btn.addEventListener('click', function () {
+    var light = root.getAttribute('data-theme') !== 'light';
+    root.setAttribute('data-theme', light ? 'light' : 'dark');
+    btn.textContent = 'Tema: ' + (light ? 'claro' : 'oscuro');
+    btn.setAttribute('aria-pressed', String(light));
+  });
+</script>
+</body>
+</html>
