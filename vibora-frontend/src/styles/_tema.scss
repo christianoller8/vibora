@@ -36,14 +36,69 @@ html {
   );
 }
 
-// Formas generosas: tarjetas a 16 px, diálogos y hojas más redondeados (los botones ya son píldora en M3).
+// Formas (DESIGN.md, "Radii and spacing"): esquinas de Material y radios de la aplicación. Los botones ya son píldora en M3.
 html {
   @include mat.theme-overrides(
     (
       corner-small: 10px,
       corner-medium: 16px,
       corner-large: 20px,
-      corner-extra-large: 28px,
+      corner-extra-large: 32px,
+    )
+  );
+
+  --r-sm: 10px; // chips, huecos
+  --r-md: 16px; // campos, tarjetas pequeñas, diálogos
+  --r-lg: 20px; // tarjetas
+  --r-xl: 24px; // tarjetas grandes y de cifra
+  --r-hero: 32px; // contenedor del hero
+  --r-pill: 999px; // botones, barra superior, etiquetas
+  // La tarjeta de login y registro conserva sus 28 px de siempre: no sigue a corner-extra-large, que ahora es 32 px.
+  --r-auth: 28px;
+
+  // Barra superior fija: la píldora (56 px) dentro de un marco con 12 px de relleno arriba. `--app-alto-barra` es lo que
+  // ocupa la barra más un respiro igual debajo (56 + 12 + 12): el contenido que recibe el foco por teclado no debe
+  // quedar tapado por ella (WCAG 2.4.11).
+  --app-alto-pildora: 56px;
+  --app-marco-barra: 0.75rem;
+  --app-alto-barra: calc(var(--app-alto-pildora) + 2 * var(--app-marco-barra));
+  // Fondo de la píldora: la tarjeta al 94 %, para que lo que pasa por debajo apenas se insinúe (el marco es opaco)
+  --app-fondo-barra: color-mix(in srgb, var(--app-tarjeta) 94%, transparent);
+}
+
+// Tarjetas: radio --r-lg, un escalón de superficie sobre la página y el contorno fino outline-variant; sin sombra pesada.
+html {
+  @include mat.card-overrides(
+    (
+      outlined-container-shape: var(--r-lg),
+      elevated-container-shape: var(--r-lg),
+      outlined-container-color: var(--app-tarjeta),
+      elevated-container-color: var(--app-tarjeta),
+      outlined-outline-color: var(--mat-sys-outline-variant),
+    )
+  );
+}
+
+// Diálogos a --r-md.
+html {
+  @include mat.dialog-overrides(
+    (
+      container-shape: var(--r-md),
+    )
+  );
+}
+
+// Botones de 44 px como mínimo (Material los dibuja de 40 px con la densidad 0), solo dentro de la aplicación: mientras
+// la carcasa `app-main-layout` está en pantalla (también para los diálogos y menús del overlay). Login y registro
+// usan otra carcasa y conservan los 40 px de siempre.
+html:has(app-main-layout) {
+  @include mat.button-overrides(
+    (
+      filled-container-height: 44px,
+      outlined-container-height: 44px,
+      text-container-height: 44px,
+      tonal-container-height: 44px,
+      protected-container-height: 44px,
     )
   );
 }
@@ -97,6 +152,11 @@ html:not([data-theme='light']) {
   );
 
   --app-foco: #d4f25a;
+  // Superficie de tarjeta: el escalón surface-container (#262c30) sobre la página.
+  --app-tarjeta: var(--mat-sys-surface-container);
+  // Relleno lima de la selección (enlace activo de la barra) y su texto: en el oscuro la lima es el primario.
+  --app-lima: var(--mat-sys-primary);
+  --app-sobre-lima: var(--mat-sys-on-primary);
 
   --app-exito: #7fd99a;
   --app-sobre-exito: #06210f;
@@ -198,6 +258,11 @@ html[data-theme='light'] {
   );
 
   --app-foco: #4a5a00;
+  // Superficie de tarjeta: blanca (surface-container-low) sobre la página gris.
+  --app-tarjeta: var(--mat-sys-surface-container-low);
+  // En el claro el primario es el oliva del texto: la lima de relleno es el contenedor primario (texto carbón).
+  --app-lima: var(--mat-sys-primary-container);
+  --app-sobre-lima: var(--mat-sys-on-primary-container);
 
   --app-exito: #1e6b34;
   --app-sobre-exito: #ffffff;
@@ -284,6 +349,16 @@ html {
   @include mat.strong-focus-indicators(
     (
       border-color: var(--app-foco),
+    )
+  );
+}
+
+// El anillo de 2 px vale solo dentro de la aplicación; login y registro conservan los 3 px de Material.
+html:has(app-main-layout) {
+  @include mat.strong-focus-indicators(
+    (
+      border-color: var(--app-foco),
+      border-width: 2px,
     )
   );
 }

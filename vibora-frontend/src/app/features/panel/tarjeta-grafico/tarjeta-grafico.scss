@@ -4,10 +4,10 @@
 }
 
 .tarjeta {
-  padding: 1rem;
+  padding: 1.25rem;
   border: 1px solid var(--mat-sys-outline-variant);
-  border-radius: 12px;
-  background: var(--mat-sys-surface-container-low, var(--mat-sys-surface));
+  border-radius: var(--r-lg);
+  background: var(--app-tarjeta);
 }
 
 .cabecera {

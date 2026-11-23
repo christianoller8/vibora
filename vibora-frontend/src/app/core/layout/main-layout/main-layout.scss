@@ -1,31 +1,121 @@
+// dvh: en móvil 100vh incluye la zona que tapa la barra del navegador y deja el contenido cortado
 .contenedor {
-  height: 100vh;
+  height: 100dvh;
 }
 
-.menu {
-  width: 220px;
-  border-inline-end: 1px solid var(--mat-sys-outline-variant);
-  background: var(--mat-sys-surface-container-low);
+// La barra fija tapa lo que queda debajo al desplazarse hasta un elemento con el foco: el contenedor que se desplaza
+// reserva su alto para que el foco nunca quede oculto (WCAG 2.4.11).
+mat-sidenav-content {
+  scroll-padding-top: var(--app-alto-barra);
 }
 
-mat-toolbar {
-  border-bottom: 1px solid var(--mat-sys-outline-variant);
+// El menú de móvil y el difuminado de los bordes de la lista viven en styles/_barra.scss (presupuesto de estilos).
+
+// Barra superior (DESIGN.md, "Pill nav"): una píldora de 56 px fija arriba, dentro de un marco opaco (sin desenfoque
+// decorativo). Solo la píldora es casi opaca (94 %): lo que pasa por debajo de ella apenas se insinúa.
+.marco-barra {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  padding: var(--app-marco-barra) 1rem 0;
+  // el marco es opaco: el contenido que se desplaza no se ve por el hueco de 12 px alrededor de la píldora
+  background: var(--mat-sys-surface);
+}
+
+.barra {
+  height: var(--app-alto-pildora);
+  // sin esto la barra no puede ser más estrecha que sus hijos y desborda en pantallas de unos 390 px
+  min-width: 0;
+  gap: 0.25rem;
+  padding-inline: 0.75rem 0.5rem;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: var(--r-pill);
+  background: var(--app-fondo-barra);
+  color: var(--mat-sys-on-surface);
+  box-sizing: border-box;
+  --mat-toolbar-container-background-color: transparent;
+  --mat-toolbar-container-text-color: var(--mat-sys-on-surface);
+  --mat-toolbar-standard-height: var(--app-alto-pildora);
+  --mat-toolbar-mobile-height: var(--app-alto-pildora);
 }
 
 .contenido {
-  padding: 1.5rem;
+  padding: 1.5rem 2rem 2rem;
 }
 
+// el logo nunca cede ancho: el nombre completo siempre se ve. Quien cede es la lista de enlaces (que se desplaza); en
+// pantallas estrechas (<= 480 px) la plantilla ya cambia al logo solo con la marca
 .logo {
+  flex: none;
   margin-inline-start: 0.5rem;
   font-size: 0.95rem;
+}
+
+// Enlaces en el centro. Si no caben (entre 721 px y el ancho de escritorio) la lista se desplaza en horizontal, con una
+// barra fina visible y los bordes difuminados, en vez de partir las etiquetas. El anillo de foco de los enlaces se
+// dibuja hacia dentro (ver `.enlace:focus-visible`): el scroller recortaría lo que sobresale.
+.enlaces {
+  // la lista es el offsetParent de los enlaces: `mostrarSiActivo` calcula su desplazamiento con `offsetLeft`
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  align-self: stretch;
+  gap: 0.25rem;
+  min-width: 0;
+  margin-inline: 0.75rem;
+  padding-inline: 0.25rem;
+  overflow-x: auto;
+  // el enlace activo no se queda bajo el borde difuminado (1.5rem): se detiene 2rem antes del borde
+  scroll-padding-inline: 2rem;
+  scrollbar-width: thin;
+  scrollbar-color: var(--mat-sys-outline) transparent;
+}
+
+.enlace {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 1rem;
+  box-sizing: border-box;
+  border-radius: var(--r-pill);
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-label-large);
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    background-color 150ms ease-out,
+    color 150ms ease-out;
+}
+
+// El anillo global (2px, con offset +2px) se recortaría contra el borde del scroller, sobre todo con su barra visible:
+// aquí se dibuja dentro del enlace. El color y el grosor siguen siendo los de la regla global de foco.
+.enlace:focus-visible {
+  outline-offset: -2px;
+}
+
+.enlace:hover {
+  background: var(--mat-sys-surface-container-high);
+  color: var(--mat-sys-on-surface);
+}
+
+// enlace activo: píldora lima con texto carbón (el estado no depende solo del color: también lleva aria-current)
+.enlace.activo {
+  background: var(--app-lima);
+  color: var(--app-sobre-lima);
+  font-weight: 700;
 }
 
 .separador {
   flex: 1 1 auto;
 }
 
+// el nombre no cede espacio a la lista de enlaces (que ya se desplaza): solo se recorta si es muy largo
 .usuario {
+  flex: 0 0 auto;
+  max-width: 12rem;
   margin-right: 0.75rem;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -34,8 +124,12 @@ mat-toolbar {
 
 .rol {
   margin-right: 0.5rem;
+}
+
+// etiqueta del rol de la barra (la del menú de móvil, `.menu-rol`, está en styles/_barra.scss)
+.rol {
   padding: 0.125rem 0.75rem;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--mat-sys-secondary-container);
   color: var(--mat-sys-on-secondary-container);
   font: var(--mat-sys-label-medium);
@@ -47,7 +141,9 @@ mat-toolbar {
   align-items: center;
   flex-wrap: wrap;
   gap: 0.5rem;
-  padding: 0.5rem 1.5rem;
+  margin: 0.75rem 2rem 0;
+  padding: 0.5rem 1rem;
+  border-radius: var(--r-md);
   background: var(--mat-sys-error-container);
   color: var(--mat-sys-on-error-container);
   font: var(--mat-sys-body-medium);
@@ -55,17 +151,6 @@ mat-toolbar {
   span {
     flex: 1 1 12rem;
   }
-}
-
-// entrada de menú activa: contenedor primario y texto del color de acento (estado seleccionado)
-.activo {
-  --mat-list-list-item-container-color: var(--mat-sys-primary-container);
-  --mat-list-list-item-label-text-color: var(--mat-sys-on-primary-container);
-  --mat-list-list-item-leading-icon-color: var(--mat-sys-on-primary-container);
-  --mat-list-list-item-hover-label-text-color: var(--mat-sys-on-primary-container);
-  --mat-list-list-item-hover-leading-icon-color: var(--mat-sys-on-primary-container);
-  --mat-list-list-item-focus-label-text-color: var(--mat-sys-on-primary-container);
-  font-weight: 600;
 }
 
 .solo-lectores {
@@ -76,14 +161,22 @@ mat-toolbar {
   clip-path: inset(50%);
 }
 
-@media (max-width: 599px) {
+// la barra ya lleva el selector de tema y la campana: sin sitio para el nombre y el rol por debajo de este ancho
+// (en móvil los muestra el menú lateral)
+@media (max-width: 899px) {
+  .usuario,
+  .rol {
+    display: none;
+  }
+}
+
+// móvil: los enlaces se pliegan en el menú (el componente deja de pintarlos); márgenes de 16 px
+@media (max-width: 720px) {
   .contenido {
     padding: 1rem;
   }
 
-  // la barra ya lleva el selector de tema y la campana: en móvil el nombre y el rol no caben sin desbordar los 375 px
-  .usuario,
-  .rol {
-    display: none;
+  .aviso-servidor {
+    margin-inline: 1rem;
   }
 }

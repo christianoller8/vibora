@@ -1,77 +1,57 @@
+<!-- Etiqueta de una entrada: texto y, en "Invitaciones", la insignia de pendientes (la usan la barra y el menú móvil) -->
+<ng-template #etiqueta let-entrada>
+  @if (entrada.insignia) {
+    <span
+      [matBadge]="invitaciones.pendientes()"
+      [matBadgeHidden]="invitaciones.pendientes() === 0"
+      matBadgeOverlap="false"
+      matBadgeSize="small"
+      >{{ entrada.texto }}</span
+    >
+    @if (invitaciones.pendientes() > 0) {
+      <!-- el número de la insignia es solo visual: esto es lo que leen los lectores de pantalla -->
+      <span class="solo-lectores" data-testid="invitaciones-pendientes"
+        >{{ invitaciones.pendientes() }} pendientes</span
+      >
+    }
+  } @else {
+    {{ entrada.texto }}
+  }
+</ng-template>
+
 <mat-sidenav-container class="contenedor">
-  <!-- menú lateral: en escritorio "side" empuja el contenido; en móvil "over" lo tapa -->
+  <!-- menú de móvil (<= 720 px): los enlaces de la barra se pliegan aquí y tapan el contenido -->
   <mat-sidenav
-    [opened]="menuAbierto()"
+    mode="over"
+    [opened]="esMovil() && menuAbierto()"
     (openedChange)="menuAbierto.set($event)"
-    [mode]="esMovil() ? 'over' : 'side'"
     class="menu"
+    id="menu-movil"
   >
-    @if (auth.estaAutenticado()) {
-      <mat-nav-list>
-        @if (auth.esAdminClub()) {
-          <a mat-list-item routerLink="/panel" routerLinkActive="activo" (click)="alNavegar()">
-            <mat-icon matListItemIcon>insights</mat-icon>
-            <span matListItemTitle>Panel</span>
-          </a>
-        }
-        <a mat-list-item routerLink="/agenda" routerLinkActive="activo" (click)="alNavegar()">
-          <mat-icon matListItemIcon>calendar_month</mat-icon>
-          <span matListItemTitle>Agenda</span>
-        </a>
-        <a mat-list-item routerLink="/mis-reservas" routerLinkActive="activo" (click)="alNavegar()">
-          <mat-icon matListItemIcon>event_available</mat-icon>
-          <span matListItemTitle>Mis reservas</span>
-        </a>
-        <a mat-list-item routerLink="/partidos" routerLinkActive="activo" (click)="alNavegar()">
-          <mat-icon matListItemIcon>groups</mat-icon>
-          <span matListItemTitle>Partidos</span>
-        </a>
-        <a mat-list-item routerLink="/deudas" routerLinkActive="activo" (click)="alNavegar()">
-          <mat-icon matListItemIcon>payments</mat-icon>
-          <span matListItemTitle>Deudas</span>
-        </a>
-        <a mat-list-item routerLink="/facturas" routerLinkActive="activo" (click)="alNavegar()">
-          <mat-icon matListItemIcon>receipt_long</mat-icon>
-          <span matListItemTitle>Mis facturas</span>
-        </a>
-        <a mat-list-item routerLink="/incidencias" routerLinkActive="activo" (click)="alNavegar()">
-          <mat-icon matListItemIcon>report_problem</mat-icon>
-          <span matListItemTitle>Incidencias</span>
-        </a>
-        <!-- solo quien puede aceptar una invitación (jugador sin club); el personal y el administrador no la ven -->
-        @if (auth.puedeCrearClub()) {
+    @if (esMovil() && auth.estaAutenticado()) {
+      <!-- en la barra el nombre y el rol se ocultan por debajo de 900 px: el menú los muestra arriba -->
+      @if (auth.usuario(); as usuario) {
+        <div class="menu-usuario">
+          <span class="menu-nombre">{{ usuario.nombre || usuario.email }}</span>
+          <span class="menu-rol">{{ etiquetaRol[usuario.rol] }}</span>
+        </div>
+      }
+      <mat-nav-list aria-label="Principal">
+        @for (entrada of entradas(); track entrada.ruta) {
           <a
             mat-list-item
-            routerLink="/invitaciones"
+            [routerLink]="entrada.ruta"
             routerLinkActive="activo"
+            ariaCurrentWhenActive="page"
             (click)="alNavegar()"
           >
-            <mat-icon matListItemIcon>mail</mat-icon>
-            <span
-              matListItemTitle
-              [matBadge]="invitaciones.pendientes()"
-              [matBadgeHidden]="invitaciones.pendientes() === 0"
-              matBadgeOverlap="false"
-              matBadgeSize="small"
-              >Invitaciones</span
-            >
-            @if (invitaciones.pendientes() > 0) {
-              <!-- el número de la insignia es solo visual: esto es lo que leen los lectores de pantalla -->
-              <span class="solo-lectores" data-testid="invitaciones-pendientes"
-                >{{ invitaciones.pendientes() }} pendientes</span
-              >
-            }
-          </a>
-        }
-        @if (auth.esAdminClub()) {
-          <a mat-list-item routerLink="/club" routerLinkActive="activo" (click)="alNavegar()">
-            <mat-icon matListItemIcon>storefront</mat-icon>
-            <span matListItemTitle>Mi club</span>
-          </a>
-        } @else if (auth.puedeCrearClub()) {
-          <a mat-list-item routerLink="/club/crear" routerLinkActive="activo" (click)="alNavegar()">
-            <mat-icon matListItemIcon>add_business</mat-icon>
-            <span matListItemTitle>Crear mi club</span>
+            <mat-icon matListItemIcon>{{ entrada.icono }}</mat-icon>
+            <span matListItemTitle>
+              <ng-container
+                [ngTemplateOutlet]="etiqueta"
+                [ngTemplateOutletContext]="{ $implicit: entrada }"
+              />
+            </span>
           </a>
         }
       </mat-nav-list>
@@ -79,36 +59,83 @@
   </mat-sidenav>
 
   <mat-sidenav-content>
-    <mat-toolbar>
-      <button mat-icon-button (click)="alternarMenu()" aria-label="Abrir o cerrar el menú">
-        <mat-icon>menu</mat-icon>
-      </button>
-      <app-logo class="logo" />
-      <span class="separador"></span>
-
-      @if (auth.usuario(); as usuario) {
-        <span class="usuario">{{ usuario.nombre || usuario.email }}</span>
-        <span class="rol">{{ etiquetaRol[usuario.rol] }}</span>
-      }
-      <app-selector-tema />
-      @if (auth.estaAutenticado()) {
-        <app-campana />
-        @if (esPersonal()) {
+    <!-- barra superior en píldora: marca a la izquierda, enlaces en el centro, controles a la derecha -->
+    <header class="marco-barra">
+      <mat-toolbar class="barra">
+        @if (esMovil() && auth.estaAutenticado()) {
           <button
             mat-icon-button
             type="button"
-            data-accion="salir-club"
-            aria-label="Salir del club"
-            title="Salir del club"
-            [disabled]="saliendoDelClub()"
-            (click)="salirDelClub()"
+            (click)="alternarMenu()"
+            aria-label="Abrir o cerrar el menú"
+            aria-controls="menu-movil"
+            [attr.aria-expanded]="menuAbierto()"
           >
-            <mat-icon aria-hidden="true">exit_to_app</mat-icon>
+            <mat-icon>menu</mat-icon>
           </button>
         }
-        <button mat-button type="button" data-accion="salir" (click)="salir()">Salir</button>
-      }
-    </mat-toolbar>
+        <!-- por debajo de 480 px solo la marca: el nombre se recortaría a medias; el nombre accesible lo sigue dando el host -->
+        <app-logo class="logo" [variante]="esEstrecho() ? 'marca' : 'completo'" />
+
+        @if (!esMovil() && auth.estaAutenticado()) {
+          <nav class="enlaces" aria-label="Principal" #listaEnlaces>
+            @for (entrada of entradas(); track entrada.ruta) {
+              <a
+                class="enlace"
+                [routerLink]="entrada.ruta"
+                #enlaceBarra
+                routerLinkActive="activo"
+                ariaCurrentWhenActive="page"
+                (isActiveChange)="mostrarSiActivo($event, enlaceBarra)"
+              >
+                <ng-container
+                  [ngTemplateOutlet]="etiqueta"
+                  [ngTemplateOutletContext]="{ $implicit: entrada }"
+                />
+              </a>
+            }
+          </nav>
+        }
+        <span class="separador"></span>
+
+        @if (auth.usuario(); as usuario) {
+          <span class="usuario">{{ usuario.nombre || usuario.email }}</span>
+          <span class="rol">{{ etiquetaRol[usuario.rol] }}</span>
+        }
+        <app-selector-tema />
+        @if (auth.estaAutenticado()) {
+          <app-campana />
+          @if (esPersonal()) {
+            <button
+              mat-icon-button
+              type="button"
+              data-accion="salir-club"
+              aria-label="Salir del club"
+              title="Salir del club"
+              [disabled]="saliendoDelClub()"
+              (click)="salirDelClub()"
+            >
+              <mat-icon aria-hidden="true">exit_to_app</mat-icon>
+            </button>
+          }
+          <!-- por debajo de 480 px "Salir" es un botón de icono (mismo nombre accesible) para que la barra quepa -->
+          @if (esEstrecho()) {
+            <button
+              mat-icon-button
+              type="button"
+              data-accion="salir"
+              aria-label="Salir"
+              title="Salir"
+              (click)="salir()"
+            >
+              <mat-icon aria-hidden="true">logout</mat-icon>
+            </button>
+          } @else {
+            <button mat-button type="button" data-accion="salir" (click)="salir()">Salir</button>
+          }
+        }
+      </mat-toolbar>
+    </header>
 
     <!-- hay token pero /me no ha respondido (backend caído o sin red): se avisa sin bloquear y se reintenta sola -->
     @if (auth.sesionIncierta()) {

@@ -11,7 +11,8 @@
     "test:tema": "node --test docker/tema-inicial.test.mjs",
     "test:marca": "node --test docker/marca.test.mjs",
     "test:colores": "node --test scripts/colores.test.mjs",
-    "test:paleta": "node --test scripts/paleta.test.mjs"
+    "test:paleta": "node --test scripts/paleta.test.mjs",
+    "test:formas": "node --test scripts/formas.test.mjs"
   },
   "private": true,
   "packageManager": "npm@11.13.0",

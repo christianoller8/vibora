@@ -127,7 +127,8 @@
   max-width: 26rem;
   padding: 2rem 1.5rem;
   border: 1px solid var(--mat-sys-outline-variant);
-  border-radius: var(--mat-sys-corner-extra-large);
+  // 28 px fijos (--r-auth): la tarjeta de acceso no sigue a la esquina extra grande de Material, que pasó a 32 px con las formas nuevas
+  border-radius: var(--r-auth);
   background: var(--mat-sys-surface-container-low);
   box-sizing: border-box;
 }

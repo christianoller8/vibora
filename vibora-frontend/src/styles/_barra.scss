@@ -1,0 +1,102 @@
+// Reglas de la barra superior y del menú de móvil que viven fuera del SCSS del componente para no pasar su presupuesto
+// de estilos (`anyComponentStyle`). Todas van acotadas a `app-main-layout`, así que no se filtran a otras pantallas.
+// Los colores son siempre referencias a tokens de _tema.scss.
+
+// Distancia (en cada borde) que se difumina cuando la lista de enlaces desborda; 0 si cabe entera.
+@property --fade-izq {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --fade-der {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+
+// Según se desplaza la lista: sin desplazamiento solo se difumina el borde derecho (hay más enlaces), al final solo el
+// izquierdo, y entre medias los dos. Si la lista cabe no hay línea de tiempo de desplazamiento y no se difumina nada.
+@keyframes bordes-de-la-lista {
+  0% {
+    --fade-izq: 0px;
+    --fade-der: 1.5rem;
+  }
+  5%,
+  95% {
+    --fade-izq: 1.5rem;
+    --fade-der: 1.5rem;
+  }
+  100% {
+    --fade-izq: 1.5rem;
+    --fade-der: 0px;
+  }
+}
+
+// El difuminado solo existe donde hay líneas de tiempo de desplazamiento; sin ellas queda la barra visible.
+// (la máscara solo usa el canal alfa: el scrim del tema es opaco)
+@supports (animation-timeline: scroll()) {
+  app-main-layout .enlaces {
+    mask-image: linear-gradient(
+      to right,
+      transparent,
+      var(--mat-sys-scrim) var(--fade-izq),
+      var(--mat-sys-scrim) calc(100% - var(--fade-der)),
+      transparent
+    );
+    animation: bordes-de-la-lista linear both;
+    animation-timeline: scroll(self inline);
+  }
+}
+
+// Menú de móvil: se superpone al contenido; la entrada activa es una píldora lima, como en la barra
+app-main-layout .menu {
+  width: 240px;
+  border-inline-end: 1px solid var(--mat-sys-outline-variant);
+  background: var(--mat-sys-surface-container-low);
+  --mat-list-list-item-container-shape: var(--r-pill);
+}
+
+// aire alrededor de las píldoras para que la activa no toque el borde de la pantalla
+app-main-layout .menu mat-nav-list {
+  padding: 0.75rem;
+}
+
+// nombre y rol del usuario arriba del menú de móvil (la barra los oculta por debajo de 900 px)
+app-main-layout .menu-usuario {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem 1.5rem 0.25rem;
+}
+
+app-main-layout .menu-nombre {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: var(--mat-sys-title-small);
+  color: var(--mat-sys-on-surface);
+}
+
+// etiqueta del rol en el menú de móvil (la de la barra, `.rol`, está en el SCSS del componente)
+app-main-layout .menu-rol {
+  padding: 0.125rem 0.75rem;
+  border-radius: var(--r-pill);
+  background: var(--mat-sys-secondary-container);
+  color: var(--mat-sys-on-secondary-container);
+  font: var(--mat-sys-label-medium);
+  white-space: nowrap;
+}
+
+// entrada activa del menú de móvil: píldora lima, texto e icono carbón
+app-main-layout .menu .activo {
+  --mat-list-list-item-container-color: var(--app-lima);
+  --mat-list-list-item-label-text-color: var(--app-sobre-lima);
+  --mat-list-list-item-leading-icon-color: var(--app-sobre-lima);
+  --mat-list-list-item-hover-label-text-color: var(--app-sobre-lima);
+  --mat-list-list-item-hover-leading-icon-color: var(--app-sobre-lima);
+  --mat-list-list-item-focus-label-text-color: var(--app-sobre-lima);
+  font-weight: 600;
+}

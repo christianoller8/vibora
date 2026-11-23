@@ -13,8 +13,8 @@
   min-width: 0;
   padding: 0.75rem 1rem;
   border: 1px solid var(--mat-sys-outline-variant);
-  border-radius: 12px;
-  background: var(--mat-sys-surface-container-low, var(--mat-sys-surface));
+  border-radius: var(--r-lg);
+  background: var(--app-tarjeta);
 }
 
 dt {

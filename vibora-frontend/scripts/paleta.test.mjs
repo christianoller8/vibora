@@ -177,15 +177,6 @@ test('el panel de marca sigue oscuro en ambos temas con la base carbon', () => {
   assert.ok(!TEMA.includes('--marca-degradado'), 'el degradado vuelve con la landing');
 });
 
-test('formas: las esquinas siguen en los valores de main (esta fase solo cambia color) y no hay radios sin uso', () => {
-  const esquinas = { small: '10px', medium: '16px', large: '20px', 'extra-large': '28px' };
-  for (const [n, v] of Object.entries(esquinas)) {
-    assert.match(TEMA, new RegExp(`corner-${n}:\\s*${v},`), `corner-${n} debe ser ${v}`);
-  }
-  assert.equal([...TEMA.matchAll(/corner-[\w-]+:/g)].length, 4, 'solo los cuatro corner-* de main');
-  assert.ok(!/--r-(sm|md|lg|xl|hero|pill):/.test(TEMA), 'los radios --r-* llegan con la fase de componentes');
-});
-
 // ---------------------------------------------------------------------------------------------------------------
 // Contraste
 // ---------------------------------------------------------------------------------------------------------------

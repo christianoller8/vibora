@@ -79,6 +79,9 @@ jobs:
       - name: Guardia de la paleta (valores y contraste de los dos temas)
         run: npm run test:paleta
 
+      - name: Guardia de las formas (radios, tarjetas, botones y barra superior)
+        run: npm run test:formas
+
       - name: Guardia de la CSP de produccion
         run: npm run test:csp
 
