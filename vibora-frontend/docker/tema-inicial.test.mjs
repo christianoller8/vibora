@@ -90,6 +90,8 @@ test('si localStorage lanza (al leer o al acceder) aplica el oscuro y no propaga
 
 test('el theme-color del navegador sigue al tema elegido y no al del sistema operativo', () => {
   assert.ok(OSCURO && CLARO && OSCURO !== CLARO, 'index.html lleva un color por tema');
+  assert.equal(OSCURO.toLowerCase(), '#1c2124', 'sin destello del color antiguo en oscuro');
+  assert.equal(CLARO.toLowerCase(), '#ecedea', 'sin destello del color antiguo en claro');
   assert.equal(ejecutar({ guardado: 'light' }).themeColor, CLARO);
   assert.equal(ejecutar({ guardado: 'dark' }).themeColor, OSCURO);
   assert.equal(ejecutar().themeColor, OSCURO);

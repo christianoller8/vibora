@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
   <title>Víbora</title>
-  <rect width="64" height="64" rx="14" fill="#0b0c0a"/>
+  <rect width="64" height="64" rx="14" fill="#1c2124"/>
   <g fill="#d4f25a" transform="translate(5.714 6.125) scale(0.821)">
     <path d="M4 8Q4 42 28 58Q16 34 22 8Z"/>
     <path d="M60 8Q60 42 36 58Q48 34 42 8Z"/>

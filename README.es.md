@@ -445,6 +445,7 @@ cd vibora-frontend && npm run test:csp            # comprueba la CSP generada
 cd vibora-frontend && npm run test:tema           # comprueba el script del tema inicial
 cd vibora-frontend && npm run test:marca          # comprueba iconos, theme-color y animación del logo
 cd vibora-frontend && npm run test:colores        # ningún color literal fuera de los tokens del tema
+cd vibora-frontend && npm run test:paleta         # comprueba valores y contraste de los dos temas
 node --test "scripts/lib/*.test.mjs"              # helper de fechas del script de datos
 ```
 

@@ -56,24 +56,24 @@ html:not([data-theme='light']) {
 
   @include mat.theme-overrides(
     (
-      background: #0b0c0a,
-      on-background: #f2f3ee,
-      surface: #0b0c0a,
-      on-surface: #f2f3ee,
-      surface-variant: #23251f,
-      on-surface-variant: #a9ad9f,
-      surface-dim: #0b0c0a,
-      surface-bright: #33362d,
-      surface-container-lowest: #070806,
-      surface-container-low: #141511,
-      surface-container: #1b1d18,
-      surface-container-high: #23251f,
-      surface-container-highest: #2b2e26,
+      background: #1c2124,
+      on-background: #f1f3ee,
+      surface: #1c2124,
+      on-surface: #f1f3ee,
+      surface-variant: #2f363b,
+      on-surface-variant: #a9b2b7,
+      surface-dim: #1c2124,
+      surface-bright: #384046,
+      surface-container-lowest: #171c1f,
+      surface-container-low: #20262a,
+      surface-container: #262c30,
+      surface-container-high: #2f363b,
+      surface-container-highest: #384046,
       surface-tint: #d4f25a,
-      outline: #7b7f70,
-      outline-variant: #2e3129,
+      outline: #78838a,
+      outline-variant: #363d42,
       primary: #d4f25a,
-      on-primary: #1a2100,
+      on-primary: #161b00,
       primary-container: #2f3a00,
       on-primary-container: #e0fe65,
       secondary: #c3cb99,
@@ -88,9 +88,9 @@ html:not([data-theme='light']) {
       on-error: #690005,
       error-container: #93000a,
       on-error-container: #ffdad6,
-      inverse-surface: #e8eadf,
-      inverse-on-surface: #1b1d18,
-      inverse-primary: #546500,
+      inverse-surface: #e8ebe6,
+      inverse-on-surface: #1c2124,
+      inverse-primary: #4a5a00,
       scrim: #000000,
       shadow: #000000,
     )
@@ -106,25 +106,35 @@ html:not([data-theme='light']) {
   --app-sobre-aviso: #3a2600;
   --app-aviso-contenedor: #4a3300;
   --app-sobre-aviso-contenedor: #ffe0a3;
-  --app-info: #7db9f5;
-  --app-sobre-info: #00263f;
-  --app-info-contenedor: #0f3552;
-  --app-sobre-info-contenedor: #cbe6ff;
+  // Info en verde azulado: el azul no es un color de interfaz, solo entra por las fotos de pista.
+  --app-info: #7fd0c4;
+  --app-sobre-info: #06231f;
+  --app-info-contenedor: #0f3f3a;
+  --app-sobre-info-contenedor: #c4f0e8;
 
-  // Gráficos: series de la paleta de datos validada (azul y naranja: ranuras 1 y 2, pasos oscuros) y escala de calor
-  // de un solo tono (más claro = más actividad sobre fondo oscuro).
-  --viz-serie-1: #3987e5;
-  --viz-serie-2: #d95926;
-  --viz-calor-0: #0d366b;
-  --viz-calor-1: #184f95;
-  --viz-calor-2: #256abf;
-  --viz-calor-3: #6da7ec;
-  --viz-calor-4: #cde2fb;
+  // Reservado para las próximas fases del rediseño (tarjeta lima pálido y bloque de contraste): aún sin uso en los componentes.
+  --app-pale: #e2f37a;
+  --app-sobre-pale: #1c2124;
+  --app-bloque: #171c1f;
+  --app-sobre-bloque: #f1f3ee;
+
+  // Gráficos: series lima, naranja, verde azulado y gris; escala de calor lima (más claro = más actividad sobre fondo
+  // oscuro). El color solo no basta: los gráficos también codifican por etiqueta o posición.
+  // Las series 3 y 4 están reservadas para las próximas fases del rediseño: aún no las usa ningún gráfico.
+  --viz-serie-1: #d4f25a;
+  --viz-serie-2: #f0834a;
+  --viz-serie-3: #5cc7b5;
+  --viz-serie-4: #a9b2b7;
+  --viz-calor-0: #2a3410;
+  --viz-calor-1: #46590f;
+  --viz-calor-2: #a6c93a;
+  --viz-calor-3: #d4f25a;
+  --viz-calor-4: #e2f37a;
   --viz-calor-texto-0: #ffffff;
   --viz-calor-texto-1: #ffffff;
-  --viz-calor-texto-2: #ffffff;
-  --viz-calor-texto-3: #0b0b0b;
-  --viz-calor-texto-4: #0b0b0b;
+  --viz-calor-texto-2: #161b00;
+  --viz-calor-texto-3: #161b00;
+  --viz-calor-texto-4: #1c2124;
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -136,47 +146,58 @@ html[data-theme='light'] {
 
   @include mat.theme-overrides(
     (
-      background: #fafbf3,
-      on-background: #1a1d12,
-      surface: #fafbf3,
-      on-surface: #1a1d12,
-      surface-variant: #e1e4d2,
-      on-surface-variant: #45483c,
-      surface-dim: #dadccd,
-      surface-bright: #fafbf3,
+      background: #ecedea,
+      on-background: #1c2124,
+      surface: #ecedea,
+      on-surface: #1c2124,
+      surface-variant: #e2e4e0,
+      on-surface-variant: #4a5358,
+      surface-dim: #d9dcd7,
+      surface-bright: #ecedea,
       surface-container-lowest: #ffffff,
       surface-container-low: #ffffff,
-      surface-container: #eef0e4,
-      surface-container-high: #e8eadd,
-      surface-container-highest: #e2e4d7,
-      surface-tint: #546500,
-      outline: #75796a,
-      outline-variant: #c5c8b7,
-      primary: #546500,
+      surface-container: #f5f6f3,
+      surface-container-high: #e2e4e0,
+      surface-container-highest: #d9dcd7,
+      surface-tint: #4a5a00,
+      outline: #6b7378,
+      outline-variant: #cbcfcb,
+      primary: #4a5a00,
       on-primary: #ffffff,
-      primary-container: #d2ef58,
-      on-primary-container: #181e00,
+      primary-container: #d4f25a,
+      on-primary-container: #1c2124,
       secondary: #5b6239,
       on-secondary: #ffffff,
-      secondary-container: #dfe7b3,
-      on-secondary-container: #181e00,
+      secondary-container: #b8c093,
+      on-secondary-container: #1c2124,
       tertiary: #206a59,
       on-tertiary: #ffffff,
       tertiary-container: #aaf1db,
       on-tertiary-container: #002019,
-      error: #ba1a1a,
+      error: #b3261e,
       on-error: #ffffff,
       error-container: #ffdad6,
       on-error-container: #410002,
-      inverse-surface: #2e3226,
-      inverse-on-surface: #f0f2e1,
-      inverse-primary: #b6d33e,
+      inverse-surface: #1c2124,
+      inverse-on-surface: #f1f3ee,
+      inverse-primary: #d4f25a,
       scrim: #000000,
       shadow: #000000,
     )
   );
 
-  --app-foco: #546500;
+  // Botones rellenos en lima (como en el oscuro): el primario oliva queda para texto, enlaces y foco; la lima es solo
+  // relleno bajo texto carbón, nunca texto sobre fondo claro.
+  @include mat.button-overrides(
+    (
+      filled-container-color: var(--mat-sys-primary-container),
+      filled-label-text-color: var(--mat-sys-on-primary-container),
+      filled-state-layer-color: var(--mat-sys-on-primary-container),
+      filled-ripple-color: color-mix(in srgb, var(--mat-sys-on-primary-container) 12%, transparent),
+    )
+  );
+
+  --app-foco: #4a5a00;
 
   --app-exito: #1e6b34;
   --app-sobre-exito: #ffffff;
@@ -186,21 +207,30 @@ html[data-theme='light'] {
   --app-sobre-aviso: #ffffff;
   --app-aviso-contenedor: #ffddaa;
   --app-sobre-aviso-contenedor: #2a1800;
-  --app-info: #1f5f9a;
+  --app-info: #1b6b63;
   --app-sobre-info: #ffffff;
-  --app-info-contenedor: #d1e7ff;
-  --app-sobre-info-contenedor: #001d36;
+  --app-info-contenedor: #c4eee8;
+  --app-sobre-info-contenedor: #00201d;
 
-  --viz-serie-1: #2a78d6;
-  --viz-serie-2: #eb6834;
-  --viz-calor-0: #cde2fb;
-  --viz-calor-1: #86b6ef;
-  --viz-calor-2: #256abf;
-  --viz-calor-3: #184f95;
-  --viz-calor-4: #0d366b;
-  --viz-calor-texto-0: #0b0b0b;
-  --viz-calor-texto-1: #0b0b0b;
-  --viz-calor-texto-2: #ffffff;
+  // Reservado para las próximas fases del rediseño (tarjeta lima pálido y bloque carbón): aún sin uso en los componentes.
+  --app-pale: #e2f37a;
+  --app-sobre-pale: #1c2124;
+  --app-bloque: #1c2124;
+  --app-sobre-bloque: #f1f3ee;
+
+  // Las series 3 y 4 están reservadas para las próximas fases del rediseño: aún no las usa ningún gráfico.
+  --viz-serie-1: #5e7000;
+  --viz-serie-2: #c2501c;
+  --viz-serie-3: #1b7a6e;
+  --viz-serie-4: #5e676c;
+  --viz-calor-0: #eaf3bd;
+  --viz-calor-1: #cfe57a;
+  --viz-calor-2: #9dbb2e;
+  --viz-calor-3: #5e7000;
+  --viz-calor-4: #33400a;
+  --viz-calor-texto-0: #161b00;
+  --viz-calor-texto-1: #161b00;
+  --viz-calor-texto-2: #161b00;
   --viz-calor-texto-3: #ffffff;
   --viz-calor-texto-4: #ffffff;
 }
@@ -218,13 +248,13 @@ html {
   --viz-tooltip-borde: var(--mat-sys-outline);
 }
 
-// Panel de marca de login y registro: negro verdoso con lima en AMBOS temas (es un momento de marca, no una
-// superficie de la interfaz; la lima sobre casi negro es su mejor lectura y el tema claro no la cambia).
+// Panel de marca de login y registro: carbón con lima en AMBOS temas (es un momento de marca, no una
+// superficie de la interfaz; la lima sobre carbón es su mejor lectura y el tema claro no la cambia).
 html {
-  --marca-fondo: #10120d;
-  --marca-borde: #23251f;
-  --marca-texto: #f2f3ee;
-  --marca-texto-suave: #a9ad9f;
+  --marca-fondo: #1c2124;
+  --marca-borde: #363d42;
+  --marca-texto: #f1f3ee;
+  --marca-texto-suave: #a9b2b7;
   --marca-acento: #d4f25a;
 }
 

@@ -445,6 +445,7 @@ cd vibora-frontend && npm run test:csp            # checks the generated CSP
 cd vibora-frontend && npm run test:tema           # checks the initial theme script
 cd vibora-frontend && npm run test:marca          # checks icons, theme-color and logo animation
 cd vibora-frontend && npm run test:colores        # no literal colours outside the theme tokens
+cd vibora-frontend && npm run test:paleta         # checks theme values and contrast of both themes
 node --test "scripts/lib/*.test.mjs"              # date helper of the seed script
 ```
 

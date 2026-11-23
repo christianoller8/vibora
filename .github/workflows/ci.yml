@@ -76,6 +76,9 @@ jobs:
       - name: Guardia de la marca (iconos, theme-color y animacion del logo)
         run: npm run test:marca
 
+      - name: Guardia de la paleta (valores y contraste de los dos temas)
+        run: npm run test:paleta
+
       - name: Guardia de la CSP de produccion
         run: npm run test:csp
 
