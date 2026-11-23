@@ -469,6 +469,13 @@ CI is defined in [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) (backe
 
 Typography: [Manrope](https://fontsource.org/fonts/manrope) (self-hosted, SIL Open Font License). Icons: Material Symbols from Google Fonts. The Víbora logo is original.
 
+Photos, all under the [Unsplash License](https://unsplash.com/license):
+
+- `pista-aerea`: José Alejandro Cuffia, [Unsplash](https://unsplash.com/photos/NtiZoP2CKOs).
+- `pistas-ciudad`: Bruno Vaccaro Vercellino, [Unsplash](https://unsplash.com/photos/reeOAiTkvZU).
+- `pista-pelotas`: Vincenzo Morelli, [Unsplash](https://unsplash.com/photos/Cj35lHL4atY). Cropped to the left part of the original to leave out the rackets.
+- `pelota-esquina`: Mario Gogh, [Unsplash](https://unsplash.com/photos/8xaMOOkKNsw).
+
 ## Author
 
 Built by **Christian Oller**. The idea, the domain design and the decisions are mine; the code was written with AI coding agents that I directed, reviewed and verified.

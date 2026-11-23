@@ -469,6 +469,13 @@ La CI está definida en [`.github/workflows/ci.yml`](./.github/workflows/ci.yml)
 
 Tipografía: [Manrope](https://fontsource.org/fonts/manrope) (autoalojada, licencia SIL Open Font). Iconos: Material Symbols de Google Fonts. El logo de Víbora es original.
 
+Fotos, todas con la [licencia de Unsplash](https://unsplash.com/license):
+
+- `pista-aerea`: José Alejandro Cuffia, [Unsplash](https://unsplash.com/photos/NtiZoP2CKOs).
+- `pistas-ciudad`: Bruno Vaccaro Vercellino, [Unsplash](https://unsplash.com/photos/reeOAiTkvZU).
+- `pista-pelotas`: Vincenzo Morelli, [Unsplash](https://unsplash.com/photos/Cj35lHL4atY). Recortada por la parte izquierda del original para dejar fuera las palas.
+- `pelota-esquina`: Mario Gogh, [Unsplash](https://unsplash.com/photos/8xaMOOkKNsw).
+
 ## Autoría
 
 Creado por **Christian Oller**. La idea, el diseño del dominio y las decisiones son míos; el código se escribió con agentes de IA que dirigí, revisé y verifiqué.

@@ -82,6 +82,9 @@ jobs:
       - name: Guardia de las formas (radios, tarjetas, botones y barra superior)
         run: npm run test:formas
 
+      - name: Guardia de las fotos (creditos y peso maximo)
+        run: npm run test:fotos
+
       - name: Guardia de la CSP de produccion
         run: npm run test:csp
 
