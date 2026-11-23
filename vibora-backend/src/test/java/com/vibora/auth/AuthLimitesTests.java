@@ -1,11 +1,15 @@
 package com.vibora.auth;
 
 import com.vibora.ApiTestBase;
+import com.vibora.RelojMutable;
+import com.vibora.RelojTestConfig;
 import com.vibora.club.Club;
 import com.vibora.usuario.Rol;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.TestPropertySource;
@@ -23,7 +27,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/** Limites de login/registro de extremo a extremo (MockMvc) con los valores de PRODUCCION (5 por par, 30 por IP, 10 registros). */
+/**
+ * Limites de login/registro de extremo a extremo (MockMvc) con los valores de PRODUCCION (5 por par, 30 por IP, 10 registros).
+ * Reloj fijo (RelojMutable): el Retry-After se calcula contra el reloj inyectado, asi que con el tiempo parado es exacto
+ * por muy lenta que vaya la maquina.
+ */
+@Import(RelojTestConfig.class)
 @TestPropertySource(properties = {
 		"vibora.seguridad.login-max-por-email=5",
 		"vibora.seguridad.login-max-por-ip=30",
@@ -34,6 +43,12 @@ class AuthLimitesTests extends ApiTestBase {
 	private static final String MENSAJE_15 = "Demasiados intentos. Inténtalo de nuevo en 15 minutos";
 
 	@MockitoSpyBean PasswordEncoder codificador;
+	@Autowired RelojMutable reloj;
+
+	@BeforeEach
+	void relojAlInicio() {
+		reloj.fijar(RelojTestConfig.AHORA_INICIAL);
+	}
 
 	/** Cada test usa su propia IP: el limitador es un bean compartido por todo el contexto. */
 	private final String ip = "10.77." + (SIGUIENTE.getAndIncrement() / 250) + "." + (SIGUIENTE.get() % 250 + 1);
